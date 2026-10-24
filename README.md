@@ -1,6 +1,5 @@
 <div align="center">
   <h1>SPECTRA</h1>
-</div>
 
 ---
 
