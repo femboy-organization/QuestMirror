@@ -1,8 +1,5 @@
 <div align="center">
   <h1>SPECTRA</h1>
-  <p>
-    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-7C3AED?style=flat-square" /></a>
-  </p>
 </div>
 
 ---
