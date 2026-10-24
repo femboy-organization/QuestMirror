@@ -1,11 +1,9 @@
 <div align="center">
-  <img src="assets/spectra-mark.svg" alt="SPECTRA mark" width="88" height="88" />
   <h1>SPECTRA</h1>
   <p><strong>Meta Quest 3 → PC screen</strong></p>
   <p>A desktop utility concept for displaying the visual output of a Meta Quest 3 headset on a computer screen.</p>
   <p>
     <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-7C3AED?style=flat-square" /></a>
-    <img alt="Project status: concept" src="https://img.shields.io/badge/status-concept-64748B?style=flat-square" />
   </p>
 </div>
 
