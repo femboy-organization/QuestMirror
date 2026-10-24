@@ -1,8 +1,6 @@
 <div align="center">
   <h1>SPECTRA</h1>
 
----
-
 ## Overview
 
 SPECTRA is centered on one use case: viewing the image from a Meta Quest 3 headset on a computer display.
