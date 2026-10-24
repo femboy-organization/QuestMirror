@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none" role="img" aria-labelledby="title">
+  <title id="title">SPECTRA mark</title>
+  <defs>
+    <linearGradient id="spectrum" x1="20" y1="24" x2="108" y2="104" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A78BFA"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="background" x1="16" y1="8" x2="112" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#151827"/>
+      <stop offset="1" stop-color="#080B13"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="126" height="126" rx="30" fill="url(#background)" stroke="#30364A" stroke-width="2"/>
+  <rect x="22" y="25" width="84" height="62" rx="17" stroke="url(#spectrum)" stroke-width="4"/>
+  <path d="M35 56H46L54 45L64 69L74 45L82 56H93" stroke="#F8FAFC" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M43 101H53M75 101H85" stroke="url(#spectrum)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="101" r="4" fill="#F8FAFC"/>
+</svg>
