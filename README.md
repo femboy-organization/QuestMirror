@@ -1,7 +1,7 @@
 ## Overview
 
 <p align="center">
-  <img src="assets/Untitled7_20261026032519.png" alt="QuestMirror logo" width="300">
+  <img src="assets/baner.png" alt="QuestMirror logo" width="300">
 </p>
 
 QuestMirror is centered on one use case: viewing the image from a Meta Quest 3 headset on a computer display.
