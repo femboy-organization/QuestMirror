@@ -1,303 +1,439 @@
-import * as child from "child_process"
+import * as child from "child_process";
 import extract from "extract-zip";
 import fs from "fs";
 import https from "https";
-import { IncomingMessage } from "http";
+import path from "path";
 import { promisify } from "util";
+import { app } from "electron";
 
 import Package from "./Package";
 import StringUtil from "./StringUtil";
-import { ipcMain, BrowserWindow } from "electron";
 
-const execFile = promisify(child.execFile)
+const execFile = promisify(child.execFile);
+const SCRCPY_VERSION = "5.0.1";
+const SCRCPY_URL =
+    "https://github.com/Genymobile/scrcpy/releases/download/v" +
+    SCRCPY_VERSION +
+    "/scrcpy-win64-v" +
+    SCRCPY_VERSION +
+    ".zip";
 
-function spawn(cmd: string, args: string[]) : Promise<void> {
-    return new Promise((resolve)=>{
-        let p = child.spawn(cmd,args);
-        p.on('exit', (code)=>{
-            resolve();
-        });
-        p.stdout.setEncoding('utf-8');
-        p.stdout.on('data', (data)=>{
-            console.log(data);
-        });
-        p.stderr.on('data', (data)=>{
-            console.log(data);
-        });
-    })
-}
-
-// OS抽象化レイヤー
+// OS abstraction layer used by the UI and device controller.
 export default class OAL {
-
-    // インスタンス
     private static instance: OAL;
+    private mirrorHostHandle: string | null = null;
+    private scrcpyProcess: child.ChildProcess | null = null;
+    private embeddingProcess: child.ChildProcess | null = null;
 
-    // コンストラクタ
-    private constructor() {
-    }
+    private constructor() {}
 
-    // インスタンスを取得する
     public static getInstance(): OAL {
-        if (!this.instance) { // インスタンスが存在しないとき
+        if (!this.instance) {
             this.instance = new OAL();
         }
-        return this.instance
+        return this.instance;
     }
 
-    // Macか
+    public setMirrorHostWindowHandle(handle: string | null): void {
+        this.mirrorHostHandle = handle;
+    }
+
     public isMac(): boolean {
-        return process.platform == "darwin"
+        return process.platform === "darwin";
     }
 
-    // パッケージをチェックする
+    private getScrcpyDirectory(): string {
+        return path.join(app.getPath("userData"), "scrcpy");
+    }
+
+    private getScrcpyExecutable(): string {
+        return path.join(this.getScrcpyDirectory(), "scrcpy.exe");
+    }
+
+    private getAdbExecutable(): string {
+        return path.join(this.getScrcpyDirectory(), "adb.exe");
+    }
+
     public async checkPackages(): Promise<Package[]> {
-        let packages = []
-        if (this.isMac()) { // Macのとき
-            let res0 = await this.checkHomebrew();
-            if (res0) {
-                packages.push(res0)
-            }
+        const packages: Package[] = [];
+        if (this.isMac()) {
+            const homebrew = await this.checkHomebrew();
+            if (homebrew) packages.push(homebrew);
 
-            let res1 = await this.checkScrcpy();
-            if (res1) {
-                packages.push(res1)
-            }
+            const scrcpy = await this.checkScrcpy();
+            if (scrcpy) packages.push(scrcpy);
 
-            let res2 = await this.checkAdb();
-            if (res2) {
-                packages.push(res2)
-            }
-        } else { // Windowsのとき
-            let res = await this.checkScrcpy();
-            if (res) {
-                packages.push(res);
-            }
+            const adb = await this.checkAdb();
+            if (adb) packages.push(adb);
+        } else {
+            const scrcpy = await this.checkScrcpy();
+            if (scrcpy) packages.push(scrcpy);
         }
         return packages;
     }
 
-    // パッケージをダウンロードする
-    public async downloadPackages(packages: Package[], callback: Function): Promise<void> {
-        if (this.isMac()) { // Macのとき
-            for (let i = 0; i < packages.length; i++) {
-                let p = packages[i];
-                console.log("Download Package: " + p.getName())
-                if (p.getName() == "adb") {
-                    await execFile("brew", ["cask", "install", "android-platform-tools"]);
-                }
+    public downloadPackages(
+        packages: Package[],
+        callback: (error?: Error) => void
+    ): void {
+        this.installPackages(packages)
+            .then(() => callback())
+            .catch((error: unknown) => {
+                const normalized =
+                    error instanceof Error ? error : new Error(String(error));
+                callback(normalized);
+            });
+    }
 
-                if (p.getName() == "scrcpy") {
+    private async installPackages(packages: Package[]): Promise<void> {
+        if (this.isMac()) {
+            for (const item of packages) {
+                if (item.getName() === "adb") {
+                    await execFile("brew", ["install", "--cask", "android-platform-tools"]);
+                } else if (item.getName() === "scrcpy") {
                     await execFile("brew", ["install", "scrcpy"]);
                 }
             }
-            callback()
-        } else { // Windowsのとき
-            let url = "https://github.com/Genymobile/scrcpy/releases/download/v1.13/scrcpy-win64-v1.13.zip"
-            const path: string = __dirname + "\\scrcpy.zip";
-            this.requestHttps(url, path, () => {
-                const dstpath: string = __dirname +  "\\scrcpy";
-                const srcpath: string = __dirname + "\\scrcpy.zip";
-                this.unzipFile(srcpath, dstpath);
-                callback();
-            })
+            return;
         }
-    }
 
-    // デバイスの接続を確認する
-    public async isDeviceConnected(): Promise<string | null> {
-        if (OAL.getInstance().isMac()) { // Macのとき
-            let result = await execFile("adb", ["devices","-l"]);
-            return this.getDeviceSerial(result.stdout);
-        } else { // Windowsのとき
-            let cmd = __dirname + '/scrcpy/adb.exe';
-            let result = await execFile(cmd, ["devices","-l"]);
-            let serail = this.getDeviceSerial(result.stdout);
-            return serail
+        if (!packages.some((item) => item.getName() === "scrcpy")) {
+            return;
         }
-    }
 
-    // scrcpyを起動する
-    public launchSrccpy(args :string[], closeCallback: Function): void {
-        let cmd = ""
-        if (this.isMac()) {
-            cmd = "scrcpy";
+        const userData = app.getPath("userData");
+        const zipPath = path.join(userData, "scrcpy-win64.zip");
+        const stagingPath = path.join(userData, "scrcpy-staging");
+        const destinationPath = this.getScrcpyDirectory();
+
+        await fs.promises.mkdir(userData, { recursive: true });
+        await fs.promises.rm(stagingPath, { recursive: true, force: true });
+        await fs.promises.rm(destinationPath, { recursive: true, force: true });
+
+        await this.downloadFile(SCRCPY_URL, zipPath);
+        await fs.promises.mkdir(stagingPath, { recursive: true });
+        await extract(zipPath, { dir: stagingPath });
+
+        const executablePath = this.findFile(stagingPath, "scrcpy.exe");
+        const adbPath = this.findFile(stagingPath, "adb.exe");
+        if (!executablePath || !adbPath) {
+            throw new Error(
+                "The scrcpy archive was downloaded, but scrcpy.exe or adb.exe was not found."
+            );
+        }
+
+        const extractedDirectory = path.dirname(executablePath);
+        if (path.dirname(adbPath) !== extractedDirectory) {
+            throw new Error("The scrcpy archive contains an unexpected file layout.");
+        }
+
+        if (extractedDirectory === stagingPath) {
+            await fs.promises.rename(stagingPath, destinationPath);
         } else {
-            cmd = __dirname +'/scrcpy/scrcpy.exe';
+            await fs.promises.rename(extractedDirectory, destinationPath);
+            await fs.promises.rm(stagingPath, { recursive: true, force: true });
         }
-        let cp = child.spawn(cmd, args);
-        cp.on('close', () => closeCallback());
-    }
 
-    // scrcpyを終了する
-    public async exitSrccpy(): Promise<void> {
-        if (this.isMac()) {
-            let pid = await this.getPID();
-            if (pid) {
-                execFile("kill", [pid])
-            }
-        } else {
-            let args = ["/im", "scrcpy.exe"]
-            execFile("taskkill", args)
+        await fs.promises.rm(zipPath, { force: true });
+        if (
+            !fs.existsSync(path.join(destinationPath, "scrcpy.exe")) ||
+            !fs.existsSync(path.join(destinationPath, "adb.exe"))
+        ) {
+            throw new Error("scrcpy installation did not complete successfully.");
         }
     }
 
-    // デバイスのIPを取得する
-    public async getIP(deviceSerial: string): Promise<string | null> {
-        let cmd = ""
-        if (this.isMac()) {
-            cmd = "adb";
-        } else {
-            cmd = __dirname +'/scrcpy/adb.exe';
-        }
-        let result = await execFile(cmd, ["-s", deviceSerial, "shell", "dumpsys", "wifi"]);
-
-        let strLines = StringUtil.getLines(result.stdout)
-        for (let i = 0; i < strLines.length; i++) {
-            if (strLines[i].indexOf("ip_address") >= 0) {
-                let ip = strLines[i].slice(11);
-                return ip
-            }
-        }
-        return null;
-    }
-
-    // TCPIPで接続する
-    public async connectTCPIP(deviceSerial: string, ip: string,
-        successCallback: Function, failedCallback: Function): Promise<void> {
-        let cmd = ""
-        if (this.isMac()) {
-            cmd = "adb";
-        } else {
-            cmd = __dirname +'/scrcpy/adb.exe';
-        }
-        await execFile(cmd, ["-s", deviceSerial, "tcpip","5555"]);
-        let result = await execFile(cmd, ["connect", ip+ ":5555"]).catch(() => {
-            failedCallback();
-            return null
-        })
-
-        if (result) {
-            successCallback();
-        }
-    }
-
-    // デバイスの接続を切る
-    public discconct(): void {
-        let cmd = ""
-        if (this.isMac()) {
-            cmd = "adb";
-        } else {
-            cmd = __dirname +'/scrcpy/adb.exe';
-        }
-        execFile(cmd, ["disconnect"]);
-    }
-
-    // httpsリクエストを投げる
-    private requestHttps(url: string, savePath: string, callback: Function): void {
-        let request = https.get(url, (res) => {
-            let resMessage = <IncomingMessage>res
-            if (resMessage.statusCode == 200) { // ダウンロードするとき
-                var file = fs.createWriteStream(savePath);
-                res.on('data', function(chunk){
-                    file.write(chunk);
-                }).on('end', function(){
-                    file.end();
-                    if (callback) {
-                        callback();
-                    }
-                });
-            } else if (resMessage.statusCode == 302) { // リダイレクトするとき
-                let redirectUrl = <string>res.headers.location
-                this.requestHttps(redirectUrl, savePath, callback);
-            }
-        })  
-    }
-
-    // homebrewが起動するか
-    private async checkHomebrew(): Promise<Package | null> {
-        let result = await execFile("brew", ["-v"]).catch((error) => {
-            return new Package("homebrew", "https://brew.sh/");
-        })
-
-        if (result instanceof Package) {
-            return result
-        } else {
-            return null;
-        }
-    }
-
-    // scrcpyが起動するか
-    private async checkScrcpy(): Promise<Package | null> {
-        if (this.isMac()) { // Macのとき
-            let result = await execFile("scrcpy", ["-v"]).catch((error) => {
-                return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
-            })
-
-            if (result instanceof Package) {
-                return result
-            } else {
-                return null;
-            }
-        } else { // Windowsのとき
-            const path: string = __dirname + "\\scrcpy\\scrcpy.exe";
-            try {
-                fs.statSync(path)
-            } catch (e) {
-                return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
-            }
-            return null
-        }
-    }
-
-    // adbが起動するか
-    private async checkAdb(): Promise<Package | null> {
-        let result = await execFile("adb", ["--version"]).catch((error) => {
-            return new Package("adb", "https://developer.android.com/studio/command-line/adb?hl=en");
-        })
-
-        if (result instanceof Package) {
-            return result
-        } else {
-            return null;
-        }
-    }
-
-    // zipファイルを解凍する
-    private async unzipFile(srcPath: string, dstPath: string): Promise<void> {
+    private findFile(root: string, fileName: string): string | null {
+        let entries: fs.Dirent[];
         try {
-            await extract(srcPath, { dir: dstPath })
-        } catch (err) {
-            console.error('Extraction failed.')
+            entries = fs.readdirSync(root, { withFileTypes: true });
+        } catch {
+            return null;
         }
-    }
 
-    // デバイス番号を取得する
-    private getDeviceSerial(stdout: string): string | null {
-        let strLines = StringUtil.getLines(stdout);
-        for (let i = 1; i < strLines.length; i++) {
-            if (strLines[i].indexOf("Quest") > 0 && strLines[i].indexOf("192.168") < 0) {
-                let st = 0;
-                let ed = strLines[i].indexOf(" ");
-                let deviceSerial = strLines[i].slice(st, ed);
-                return deviceSerial
+        for (const entry of entries) {
+            const entryPath = path.join(root, entry.name);
+            if (entry.isFile() && entry.name.toLowerCase() === fileName.toLowerCase()) {
+                return entryPath;
+            }
+            if (entry.isDirectory()) {
+                const nested = this.findFile(entryPath, fileName);
+                if (nested) return nested;
             }
         }
         return null;
     }
 
-    // プロセスIDを取得する
-    private async getPID(): Promise<string | null> {
-        let result = await execFile("ps", ["aux"]);
-        let strLines = StringUtil.getLines(result.stdout);
-        for (let i = 0; i < strLines.length; i++) {
-            if (strLines[i].indexOf("scrcpy -s") > 0) {
-                let st = strLines[i].indexOf(" ");
-                let ed = strLines[i].indexOf(" ", st + 2);
-                let pid = strLines[i].slice(st, ed);
-                return pid
+    private downloadFile(
+        url: string,
+        destination: string,
+        redirectCount: number = 0
+    ): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            if (redirectCount > 8) {
+                reject(new Error("Too many redirects while downloading scrcpy."));
+                return;
+            }
+
+            const request = https.get(url, (response) => {
+                const status = response.statusCode ?? 0;
+                if (
+                    status >= 300 &&
+                    status < 400 &&
+                    response.headers.location
+                ) {
+                    const nextUrl = new URL(response.headers.location, url).toString();
+                    response.resume();
+                    this.downloadFile(nextUrl, destination, redirectCount + 1).then(
+                        resolve,
+                        reject
+                    );
+                    return;
+                }
+
+                if (status !== 200) {
+                    response.resume();
+                    reject(
+                        new Error(
+                            "Could not download scrcpy (HTTP " + status + ")."
+                        )
+                    );
+                    return;
+                }
+
+                const output = fs.createWriteStream(destination);
+                response.on("error", reject);
+                output.on("error", reject);
+                output.on("finish", () => {
+                    output.close((error) => (error ? reject(error) : resolve()));
+                });
+                response.pipe(output);
+            });
+
+            request.setTimeout(60000, () => {
+                request.destroy(new Error("Timed out while downloading scrcpy."));
+            });
+            request.on("error", reject);
+        });
+    }
+
+    public async isDeviceConnected(): Promise<string | null> {
+        try {
+            const executable = this.isMac() ? "adb" : this.getAdbExecutable();
+            const result = await execFile(executable, ["devices", "-l"]);
+            return this.getDeviceSerial(result.stdout);
+        } catch (error) {
+            console.error("Unable to query Android devices:", error);
+            return null;
+        }
+    }
+
+    public launchSrccpy(args: string[], closeCallback: Function): void {
+        const executable = this.isMac() ? "scrcpy" : this.getScrcpyExecutable();
+        let finished = false;
+
+        try {
+            const process = child.spawn(executable, args, {
+                windowsHide: !this.isMac()
+            });
+            this.scrcpyProcess = process;
+
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                if (this.scrcpyProcess === process) this.scrcpyProcess = null;
+                this.stopEmbeddingProcess();
+                closeCallback();
+            };
+
+            process.once("error", (error) => {
+                console.error("Unable to start scrcpy:", error);
+                finish();
+            });
+            process.once("close", finish);
+
+            if (!this.isMac() && this.mirrorHostHandle && process.pid) {
+                this.attachScrcpyWindow(process.pid);
+            }
+        } catch (error) {
+            console.error("Unable to launch scrcpy:", error);
+            this.stopEmbeddingProcess();
+            closeCallback();
+        }
+    }
+
+    private attachScrcpyWindow(scrcpyPid: number): void {
+        if (!this.mirrorHostHandle) return;
+
+        const scriptPath = path.join(
+            __dirname,
+            "..",
+            "scripts",
+            "embed-scrcpy-window.ps1"
+        );
+        if (!fs.existsSync(scriptPath)) {
+            console.warn("The Windows window-embedding helper was not packaged.");
+            return;
+        }
+
+        const process = child.spawn(
+            "powershell.exe",
+            [
+                "-NoLogo",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                scriptPath,
+                this.mirrorHostHandle,
+                String(scrcpyPid),
+                "390"
+            ],
+            { windowsHide: true, stdio: "ignore" }
+        );
+        this.embeddingProcess = process;
+        process.on("error", (error) => {
+            console.warn("Could not attach the scrcpy window to SPECTRA:", error);
+        });
+    }
+
+    private stopEmbeddingProcess(): void {
+        if (this.embeddingProcess) {
+            try {
+                this.embeddingProcess.kill();
+            } catch {
+                // The helper may already have exited.
+            }
+            this.embeddingProcess = null;
+        }
+    }
+
+    public async exitSrccpy(): Promise<void> {
+        this.stopEmbeddingProcess();
+        const running = this.scrcpyProcess;
+        if (!running || !running.pid) return;
+
+        try {
+            if (this.isMac()) {
+                await execFile("kill", [String(running.pid)]);
+            } else {
+                await execFile("taskkill", [
+                    "/pid",
+                    String(running.pid),
+                    "/t",
+                    "/f"
+                ]);
+            }
+        } catch {
+            // The process may have already exited.
+        }
+    }
+
+    public async getIP(deviceSerial: string): Promise<string | null> {
+        try {
+            const executable = this.isMac() ? "adb" : this.getAdbExecutable();
+            const result = await execFile(executable, [
+                "-s",
+                deviceSerial,
+                "shell",
+                "dumpsys",
+                "wifi"
+            ]);
+            const lines = StringUtil.getLines(result.stdout);
+            for (const line of lines) {
+                if (!/ip[_ ]?address|ipAddress/i.test(line)) continue;
+                const match = line.match(/((?:\d{1,3}\.){3}\d{1,3})/);
+                if (match && match[1] !== "0.0.0.0") return match[1];
+            }
+        } catch (error) {
+            console.error("Unable to read the Quest Wi-Fi IP:", error);
+        }
+        return null;
+    }
+
+    public async connectTCPIP(
+        deviceSerial: string,
+        ip: string,
+        successCallback: Function,
+        failedCallback: Function
+    ): Promise<void> {
+        try {
+            const executable = this.isMac() ? "adb" : this.getAdbExecutable();
+            await execFile(executable, ["-s", deviceSerial, "tcpip", "5555"]);
+            const result = await execFile(executable, [
+                "connect",
+                ip + ":5555"
+            ]);
+            const output = (result.stdout + "\n" + result.stderr).toLowerCase();
+            if (output.includes("connected to") || output.includes("already connected")) {
+                successCallback();
+            } else {
+                failedCallback();
+            }
+        } catch (error) {
+            console.error("Wireless ADB connection failed:", error);
+            failedCallback();
+        }
+    }
+
+    public discconct(): void {
+        const executable = this.isMac() ? "adb" : this.getAdbExecutable();
+        void execFile(executable, ["disconnect"]).catch(() => undefined);
+    }
+
+    private async checkHomebrew(): Promise<Package | null> {
+        try {
+            await execFile("brew", ["-v"]);
+            return null;
+        } catch {
+            return new Package("homebrew", "https://brew.sh/");
+        }
+    }
+
+    private async checkScrcpy(): Promise<Package | null> {
+        if (this.isMac()) {
+            try {
+                await execFile("scrcpy", ["--version"]);
+                return null;
+            } catch {
+                return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
             }
         }
-        return null
+
+        try {
+            await fs.promises.access(this.getScrcpyExecutable(), fs.constants.X_OK);
+            await fs.promises.access(this.getAdbExecutable(), fs.constants.X_OK);
+            return null;
+        } catch {
+            return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
+        }
+    }
+
+    private async checkAdb(): Promise<Package | null> {
+        try {
+            await execFile("adb", ["--version"]);
+            return null;
+        } catch {
+            return new Package(
+                "adb",
+                "https://developer.android.com/tools/releases/platform-tools"
+            );
+        }
+    }
+
+    private getDeviceSerial(stdout: string): string | null {
+        const lines = StringUtil.getLines(stdout);
+        for (let i = 1; i < lines.length; i++) {
+            if (
+                lines[i].indexOf("Quest") > 0 &&
+                lines[i].indexOf("192.168") < 0
+            ) {
+                const end = lines[i].indexOf(" ");
+                if (end > 0) return lines[i].slice(0, end);
+            }
+        }
+        return null;
     }
 }
