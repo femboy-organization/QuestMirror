@@ -56,10 +56,17 @@ jobs:
           $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           $expected = 'b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5'
           if ($actual -ne $expected) { throw "scrcpy SHA-256 mismatch: $actual" }
-          Expand-Archive -LiteralPath $archive -DestinationPath $tools -Force
+          $extract = Join-Path $env:RUNNER_TEMP 'scrcpy-extracted'
+          Expand-Archive -LiteralPath $archive -DestinationPath $extract -Force
+          $scrcpy = Get-ChildItem -LiteralPath $extract -Filter 'scrcpy.exe' -File -Recurse | Select-Object -First 1
+          if (-not $scrcpy) { throw 'The official scrcpy archive did not contain scrcpy.exe.' }
+          $scrcpyRoot = $scrcpy.DirectoryName
+          Get-ChildItem -LiteralPath $scrcpyRoot -Force | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $tools -Recurse -Force
+          }
           Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Genymobile/scrcpy/v5.0.1/LICENSE' -OutFile (Join-Path $tools 'scrcpy-LICENSE.txt')
           foreach ($required in @('scrcpy.exe', 'adb.exe', 'scrcpy-server')) {
-            if (-not (Test-Path (Join-Path $tools $required))) { throw "Required scrcpy bundle file missing: $required" }
+            if (-not (Test-Path (Join-Path $tools $required))) { throw "Required scrcpy bundle file missing after extraction: $required" }
           }
 
       - name: Restore
