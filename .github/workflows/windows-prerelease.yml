@@ -98,7 +98,7 @@ jobs:
         id: release-check
         shell: pwsh
         env:
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view v0.1.0-pre.1 --repo femboy-organization/QuestMirror --json url 2>$null | Out-Null
           if ($LASTEXITCODE -eq 0) {
