@@ -142,7 +142,7 @@ jobs:
       contents: write
     steps:
       - name: Download verified packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: spectra-windows-${{ needs.prepare.outputs.version }}
           path: artifacts
