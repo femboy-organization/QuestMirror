@@ -100,11 +100,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view v0.1.0-pre.1 --repo femboy-organization/QuestMirror --json url 2>$null | Out-Null
-          if ($LASTEXITCODE -eq 0) {
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $uri = "https://api.github.com/repos/femboy-organization/QuestMirror/releases/tags/v0.1.0-pre.1"
+          try {
+            $release = Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
             "exists=true" | Add-Content $env:GITHUB_OUTPUT
-          } else {
-            "exists=false" | Add-Content $env:GITHUB_OUTPUT
+            Write-Host "Pre-release already exists: $($release.html_url)"
+          } catch {
+            $statusCode = 0
+            if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+              $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            if ($statusCode -eq 404) {
+              "exists=false" | Add-Content $env:GITHUB_OUTPUT
+              Write-Host "Pre-release does not exist yet and will be created."
+            } else {
+              throw
+            }
           }
 
       - name: Publish GitHub pre-release
@@ -112,6 +128,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.1.0-pre.1
+          token: ${{ secrets.GITHUB_TOKEN }}
           target_commitish: main
           name: SPECTRA v0.1.0-pre.1
           prerelease: true
