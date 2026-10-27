@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup instructions and known limitations
+    url: https://github.com/femboy-organization/QuestMirror#requirements-and-first-launch
+    about: Review setup, connection steps, and the current validation status before reporting a problem.
+  - name: Download the latest pre-release
+    url: https://github.com/femboy-organization/QuestMirror/releases
+    about: Get the current Windows installer or portable ZIP.

@@ -1,0 +1,26 @@
+* text=auto
+
+# Keep source and documentation line endings consistent.
+*.cs text eol=lf
+*.csproj text eol=lf
+*.props text eol=lf
+*.targets text eol=lf
+*.axaml text eol=lf
+*.xaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=lf
+
+# Visual Studio solution files conventionally use CRLF.
+*.sln text eol=crlf
+
+# Build and media files must not be line-ending normalized.
+*.exe binary
+*.dll binary
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary

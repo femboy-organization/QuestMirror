@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible problem with SPECTRA.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the README setup instructions and known limitations first. Remove personal or sensitive data from logs.
+  - type: input
+    id: version
+    attributes:
+      label: SPECTRA version
+      description: Find the version in the release asset or installer name.
+      placeholder: 0.1.0-pre.3
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11 x64
+        - Windows 10 x64
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection mode
+      options:
+        - USB
+        - Wi-Fi
+        - USB and Wi-Fi
+        - Not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the actions that trigger the problem.
+      placeholder: "1. Open SPECTRA…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (optional)
+      description: Sanitize device IDs, IP addresses, pairing codes, usernames, and other personal information first.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-report checks
+      options:
+        - label: I reviewed the README setup steps and validation notes.
+          required: true
