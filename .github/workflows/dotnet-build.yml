@@ -123,7 +123,7 @@ jobs:
           Get-ChildItem artifacts | Select-Object Name, Length | Format-Table -AutoSize
 
       - name: Upload verified release files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: spectra-windows-${{ needs.prepare.outputs.version }}
           path: |
