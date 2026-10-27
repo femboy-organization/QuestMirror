@@ -1,0 +1,11 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+.vs/
+.idea/
+
+# Build output
+artifacts/
+publish/
