@@ -233,7 +233,13 @@ export default class OAL {
         let finished = false;
 
         try {
-            const process = child.spawn(executable, args, {
+            // In embedded Windows mode, fullscreen applies to the host window
+            // (handled through IPC), not to the separate scrcpy top-level window.
+            const processArgs =
+                !this.isMac() && this.mirrorHostHandle
+                    ? args.filter((argument) => argument !== "-f")
+                    : args;
+            const process = child.spawn(executable, processArgs, {
                 windowsHide: !this.isMac()
             });
             this.scrcpyProcess = process;
@@ -403,12 +409,13 @@ export default class OAL {
         }
 
         try {
-            await fs.promises.access(this.getScrcpyExecutable(), fs.constants.X_OK);
-            await fs.promises.access(this.getAdbExecutable(), fs.constants.X_OK);
-            return null;
+            const scrcpyStat = await fs.promises.stat(this.getScrcpyExecutable());
+            const adbStat = await fs.promises.stat(this.getAdbExecutable());
+            if (scrcpyStat.isFile() && adbStat.isFile()) return null;
         } catch {
-            return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
+            // Re-download missing or incomplete runtime files.
         }
+        return new Package("scrcpy", "https://github.com/Genymobile/scrcpy");
     }
 
     private async checkAdb(): Promise<Package | null> {
