@@ -122,7 +122,7 @@ public static class SpectraWindowNative
     # Change the native scrcpy window into a borderless child of SPECTRA.
     $GWL_STYLE = -16
     $WS_CHILD = [long]0x40000000
-    $WS_POPUP = [long]0x80000000
+    $WS_POPUP = [long]2147483648
     $WS_CAPTION = [long]0x00C00000
     $WS_THICKFRAME = [long]0x00040000
     $WS_MINIMIZEBOX = [long]0x00020000
