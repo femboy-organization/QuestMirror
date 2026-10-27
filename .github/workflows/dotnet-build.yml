@@ -1,4 +1,4 @@
-name: .NET build
+name: SPECTRA Windows build and pre-release
 
 on:
   push:
@@ -11,19 +11,174 @@ permissions:
   contents: read
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Select deterministic build version
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/main" && ( "$GITHUB_EVENT_NAME" == "push" || "$GITHUB_EVENT_NAME" == "workflow_dispatch" ) ]]; then
+            current="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '[.[] | select(.tag_name | test("^v0\\.1\\.0-pre\\.[0-9]+$")) | (.tag_name | capture("^v0\\.1\\.0-pre\\.(?<n>[0-9]+)$").n | tonumber)] | max // 0')"
+            next=$((current + 1))
+            version="0.1.0-pre.$next"
+          else
+            version="0.1.0-ci.$GITHUB_RUN_NUMBER"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Building SPECTRA version $version"
+
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    needs: prepare
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install .NET SDK
+
+      - name: Install pinned .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 10.0.403
+
+      - name: Download and verify the official scrcpy Windows x64 bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tools = 'build\tools'
+          New-Item -ItemType Directory -Force -Path $tools | Out-Null
+          $archive = Join-Path $env:RUNNER_TEMP 'scrcpy-win64-v5.0.1.zip'
+          Invoke-WebRequest -Uri 'https://github.com/Genymobile/scrcpy/releases/download/v5.0.1/scrcpy-win64-v5.0.1.zip' -OutFile $archive
+          $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = 'b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5'
+          if ($actual -ne $expected) { throw "scrcpy SHA-256 mismatch: $actual" }
+          Expand-Archive -LiteralPath $archive -DestinationPath $tools -Force
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/Genymobile/scrcpy/v5.0.1/LICENSE' -OutFile (Join-Path $tools 'scrcpy-LICENSE.txt')
+          foreach ($required in @('scrcpy.exe', 'adb.exe', 'scrcpy-server')) {
+            if (-not (Test-Path (Join-Path $tools $required))) { throw "Required scrcpy bundle file missing: $required" }
+          }
+
       - name: Restore
         run: dotnet restore SPECTRA.sln
-      - name: Build
-        run: dotnet build SPECTRA.sln --configuration Release --no-restore
+
+      - name: Run unit tests and Release build
+        run: dotnet test SPECTRA.sln --configuration Release --no-restore
+
+      - name: Publish self-contained Windows x64 application
+        shell: pwsh
+        env:
+          SPECTRA_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet publish src/SPECTRA.App/SPECTRA.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:Version=$env:SPECTRA_VERSION -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=true --output artifacts/publish
+          if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed.' }
+
+      - name: Create portable ZIP and Windows installer
+        shell: pwsh
+        env:
+          SPECTRA_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:SPECTRA_VERSION
+          $publish = Resolve-Path 'artifacts\publish'
+          $portable = "artifacts\SPECTRA-$version-win-x64.zip"
+          $installer = "artifacts\SPECTRA-$version-Setup-win-x64.exe"
+          New-Item -ItemType Directory -Force -Path 'artifacts' | Out-Null
+
+          foreach ($required in @('SPECTRA.exe', 'tools\scrcpy.exe', 'tools\adb.exe', 'tools\scrcpy-server', 'THIRD-PARTY-NOTICES.md')) {
+            if (-not (Test-Path (Join-Path $publish $required))) { throw "Published package is missing: $required" }
+          }
+
+          Compress-Archive -Path 'artifacts\publish\*' -DestinationPath $portable -CompressionLevel Optimal
+
+          choco install innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Installing Inno Setup failed.' }
+          $programFilesX86 = [Environment]::GetFolderPath('ProgramFilesX86')
+          $iscc = Join-Path $programFilesX86 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler not found at $iscc" }
+          & $iscc "/DMyAppVersion=$version" 'build\installer\SPECTRA.iss'
+          if ($LASTEXITCODE -ne 0) { throw 'Creating the installer failed.' }
+
+          if (-not (Test-Path $portable) -or (Get-Item $portable).Length -lt 1000000) { throw 'Portable ZIP is missing or unexpectedly small.' }
+          if (-not (Test-Path $installer) -or (Get-Item $installer).Length -lt 1000000) { throw 'Installer is missing or unexpectedly small.' }
+
+          $zipHash = (Get-FileHash -LiteralPath $portable -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$zipHash  $(Split-Path $portable -Leaf)" | Set-Content -LiteralPath "$portable.sha256" -Encoding ascii
+          $setupHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$setupHash  $(Split-Path $installer -Leaf)" | Set-Content -LiteralPath "$installer.sha256" -Encoding ascii
+          Get-ChildItem artifacts | Select-Object Name, Length | Format-Table -AutoSize
+
+      - name: Upload verified release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: spectra-windows-${{ needs.prepare.outputs.version }}
+          path: |
+            artifacts/SPECTRA-*-win-x64.zip
+            artifacts/SPECTRA-*-win-x64.zip.sha256
+            artifacts/SPECTRA-*-Setup-win-x64.exe
+            artifacts/SPECTRA-*-Setup-win-x64.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified packages
+        uses: actions/download-artifact@v4
+        with:
+          name: spectra-windows-${{ needs.prepare.outputs.version }}
+          path: artifacts
+
+      - name: Publish GitHub Pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: SPECTRA v${{ needs.prepare.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          draft: false
+          generate_release_notes: true
+          body: |
+            ## SPECTRA v${{ needs.prepare.outputs.version }}
+
+            Windows x64 pre-release of the C# / Avalonia rewrite.
+
+            ### Included
+            - USB ADB device discovery and connection status.
+            - ADB Wireless debugging pairing and connection.
+            - scrcpy video window hosted inside the main SPECTRA window.
+            - Automatic and manual resolution / FPS / bitrate presets.
+            - Fullscreen mode with Escape to exit.
+            - Self-contained Windows installer and portable ZIP.
+
+            ### Notes
+            - Audio is not included.
+            - Real headset USB/Wi-Fi streaming and native window embedding still require verification on physical Meta Quest hardware.
+          files: |
+            artifacts/SPECTRA-*-win-x64.zip
+            artifacts/SPECTRA-*-win-x64.zip.sha256
+            artifacts/SPECTRA-*-Setup-win-x64.exe
+            artifacts/SPECTRA-*-Setup-win-x64.exe.sha256
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify published release and required assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: v${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          release="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
+          echo "$release" | jq -e '.prerelease == true and .draft == false' >/dev/null
+          echo "$release" | jq -e '[.assets[].name] | any(endswith("-win-x64.zip"))' >/dev/null
+          echo "$release" | jq -e '[.assets[].name] | any(endswith("-Setup-win-x64.exe"))' >/dev/null
+          echo "Verified pre-release $RELEASE_TAG with ZIP and installer assets."

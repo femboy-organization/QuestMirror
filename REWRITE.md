@@ -1,32 +1,30 @@
-# SPECTRA clean rewrite
+# SPECTRA v1 rewrite
 
-The new implementation is being built with C#/.NET and Avalonia UI. It is separated from the legacy Electron implementation while the replacement is developed and validated.
+The desktop app is implemented in C#/.NET 10 and Avalonia UI. The old Electron implementation is not used by the new project.
 
-## Projects
+## Architecture
 
-- `SPECTRA.App`: Avalonia desktop UI and UI composition.
-- `SPECTRA.Core`: platform-independent application logic and models.
-- Platform-specific integrations will be isolated behind interfaces as Windows, Linux, and macOS support is implemented.
+- **SPECTRA.App:** Avalonia UI, MVVM-style MainViewModel, fullscreen handling and the Windows native video host.
+- **SPECTRA.Core:** ADB command execution, device-state parsing, settings persistence, tool resolution, quality options, and scrcpy process lifecycle.
+- **SPECTRA.Core.Tests:** unit tests for ADB parsing and outcomes, input validation, quality presets, and settings.
+- **build/installer/SPECTRA.iss:** Inno Setup installer definition.
+- **.github/workflows/dotnet-build.yml:** pinned .NET SDK build, tests, upstream dependency hash validation, packaging, and pre-release publication.
 
-## Principles
+## Runtime behavior
 
-1. Keep UI code separate from device and streaming logic.
-2. Use asynchronous process I/O, cancellation, timeouts, and explicit process lifetime management.
-3. Do not shell-concatenate arguments; use `ProcessStartInfo.ArgumentList`.
-4. Treat ADB discovery and scrcpy streaming as separate services.
-5. Never claim streaming is working until the video output is actually rendered inside the application window.
-6. Build and test on Windows, Linux, and macOS in CI.
+ADB is invoked with ProcessStartInfo.ArgumentList rather than shell-built command strings. Process I/O is redirected, operations have timeouts, and the process runner terminates timed-out process trees. ADB results distinguish authorized (device), unauthorized, offline, and unavailable states.
 
-## Current status
+scrcpy is started without audio or control support. Its window title is uniquely generated, found by process ID, and re-parented to a hidden native child window inside the Avalonia preview area. The child is resized with the host control, allowing the desktop window and fullscreen state to change without restarting the stream. This Windows-native embedding strategy requires headset / GPU validation on physical Windows hardware; it has not been declared hardware-verified.
 
-The first scaffold contains the Avalonia window, a minimal asynchronous ADB device scan, and a cross-platform build workflow. It does not yet implement scrcpy session management or embedded video rendering. Those are separate milestones and must be tested before calling the rewrite feature-complete.
+Settings are saved atomically under the current user's Local Application Data folder. Automatic mode uses a fixed preset; manual mode validates resolution, FPS, and bitrate before building scrcpy arguments. The UI disables quality editing while a stream is running so changes take effect on the next stream.
 
-## Local development
+## Build and release
 
-Install the .NET 8 SDK, then run:
+The root global.json pins SDK 10.0.403. The release workflow downloads the official scrcpy v5.0.1 Windows x64 archive and validates its published SHA-256 before packaging it. It creates a self-contained Windows x64 publish directory, installer, portable ZIP, and SHA-256 sidecar files. Publishing occurs only after test, build, package structure, and size checks pass.
 
-```sh
-dotnet restore SPECTRA.sln
-dotnet build SPECTRA.sln
-dotnet run --project src/SPECTRA.App/SPECTRA.App.csproj
-```
+## Known limitations
+
+- The video integration uses Windows SetParent / child-window hosting with the official scrcpy SDL window. This implementation needs physical device and GPU testing, including repeated start/stop and fullscreen transitions.
+- Audio capture and playback are intentionally excluded.
+- Wireless pairing needs the pair endpoint/code and the separate Wireless debugging connect endpoint shown by Quest.
+- Linux and macOS are not currently supported at runtime; their future support requires native window hosting and packaging backends.

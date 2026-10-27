@@ -1,94 +1,207 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:SPECTRA.App.Platforms"
         x:Class="SPECTRA.App.MainWindow"
         Title="SPECTRA"
-        Width="1180" Height="760"
-        MinWidth="900" MinHeight="600"
-        Background="#101116"
-        Foreground="#F1F2F6">
-  <Grid ColumnDefinitions="230,*" RowDefinitions="*,Auto">
-    <Border Grid.RowSpan="2" Background="#171920" Padding="18">
-      <DockPanel LastChildFill="True">
-        <StackPanel DockPanel.Dock="Top" Spacing="20">
+        Width="1320" Height="870"
+        MinWidth="1000" MinHeight="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#F7F4EE"
+        Foreground="#302C29"
+        KeyDown="OnWindowKeyDown">
+  <Window.Styles>
+    <Style Selector="Button">
+      <Setter Property="Background" Value="#E8D8CB"/>
+      <Setter Property="Foreground" Value="#302C29"/>
+      <Setter Property="Padding" Value="14,9"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#6F7663"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector="Button.subtle">
+      <Setter Property="Background" Value="#EFEAE2"/>
+      <Setter Property="Foreground" Value="#4F4A45"/>
+    </Style>
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="#F2DEDA"/>
+      <Setter Property="Foreground" Value="#843E34"/>
+    </Style>
+    <Style Selector="TextBox">
+      <Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#E4DCD1"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="10,8"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="ComboBox">
+      <Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="BorderBrush" Value="#E4DCD1"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="8,5"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+    <Style Selector="CheckBox">
+      <Setter Property="Foreground" Value="#302C29"/>
+      <Setter Property="FontSize" Value="13"/>
+    </Style>
+  </Window.Styles>
+
+  <Grid Margin="30" RowDefinitions="Auto,*" RowSpacing="24">
+    <Grid ColumnDefinitions="*,Auto">
+      <StackPanel Spacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <TextBlock Text="SPECTRA" FontSize="28" FontWeight="Bold" LetterSpacing="2"/>
+          <Border Background="#E9DAD0" CornerRadius="6" Padding="8,4" VerticalAlignment="Center">
+            <TextBlock Text="PREVIEW" FontSize="9" FontWeight="Bold" LetterSpacing="1"/>
+          </Border>
+        </StackPanel>
+        <TextBlock Text="Quest display, directly in your desktop workspace." Foreground="#77716A" FontSize="13"/>
+      </StackPanel>
+      <Border Grid.Column="1" Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1"
+              CornerRadius="12" Padding="14,10" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Ellipse Width="8" Height="8" Fill="{Binding ConnectionDotBrush}" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" FontWeight="Medium"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="*,350" ColumnSpacing="22">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+        <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="3">
-            <TextBlock Text="SPECTRA" FontSize="25" FontWeight="Bold" LetterSpacing="2"/>
-            <TextBlock Text="QUEST MIRROR" FontSize="10" Foreground="#9296A5" LetterSpacing="2"/>
+            <TextBlock Text="Live preview" FontSize="19" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding QualityDescription}" FontSize="12" Foreground="#77716A"/>
           </StackPanel>
-          <Border Height="1" Background="#30333E"/>
-          <Button HorizontalContentAlignment="Left" Content="  Overview" Classes="nav"/>
-          <Button HorizontalContentAlignment="Left" Content="  Devices" Classes="nav"/>
-          <Button HorizontalContentAlignment="Left" Content="  Streaming" Classes="nav"/>
-          <Button HorizontalContentAlignment="Left" Content="  Settings" Classes="nav"/>
-        </StackPanel>
-        <StackPanel DockPanel.Dock="Bottom" Spacing="5">
-          <TextBlock Text="REBUILD PREVIEW" FontSize="10" Foreground="#9296A5"/>
-          <TextBlock Text="Avalonia · .NET" FontSize="12"/>
-        </StackPanel>
-      </DockPanel>
-    </Border>
+          <Button Grid.Column="1" Content="Fullscreen" Classes="subtle" Click="OnFullscreenClick"/>
+        </Grid>
 
-    <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="28" RowSpacing="22">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="4">
-          <TextBlock Text="Overview" FontSize="28" FontWeight="SemiBold"/>
-          <TextBlock Text="Connect your Meta Quest and start mirroring." Foreground="#A5A8B5"/>
-        </StackPanel>
-        <Border Grid.Column="1" Background="#20232C" CornerRadius="9" Padding="14,9" VerticalAlignment="Center">
-          <StackPanel Orientation="Horizontal" Spacing="8">
-            <Ellipse Width="8" Height="8" Fill="#E6B45C" VerticalAlignment="Center"/>
-            <TextBlock Text="Not connected" VerticalAlignment="Center"/>
-          </StackPanel>
-        </Border>
-      </Grid>
-
-      <Grid Grid.Row="1" RowDefinitions="*,Auto" RowSpacing="18">
-        <Border Background="#171920" BorderBrush="#2A2D37" BorderThickness="1" CornerRadius="14" Padding="20">
-          <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16">
-            <Grid ColumnDefinitions="*,Auto">
-              <StackPanel Spacing="4">
-                <TextBlock Text="Live preview" FontSize="18" FontWeight="SemiBold"/>
-                <TextBlock Text="The headset feed will appear here." Foreground="#9296A5" FontSize="12"/>
-              </StackPanel>
-              <Border Grid.Column="1" Background="#252833" CornerRadius="6" Padding="10,5">
-                <TextBlock Text="NO SIGNAL" FontSize="10" Foreground="#A5A8B5" LetterSpacing="1"/>
-              </Border>
-            </Grid>
-            <Border Grid.Row="1" Background="#0B0C10" BorderBrush="#30333E" BorderThickness="1" CornerRadius="10">
-              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-                <Border Width="64" Height="64" CornerRadius="32" Background="#1B1E27">
-                  <TextBlock Text="◉" FontSize="30" Foreground="#777D91" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <Border Grid.Row="1" Background="#151515" BorderBrush="#E4DCD1" BorderThickness="1"
+                CornerRadius="16" ClipToBounds="True" MinHeight="400">
+          <Grid>
+            <local:ScrcpyVideoHost x:Name="VideoHost"/>
+            <Border IsVisible="{Binding IsVideoPlaceholderVisible}" Background="#F0ECE5">
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="13" MaxWidth="400">
+                <Border Width="70" Height="70" CornerRadius="35" Background="#E5D7CA">
+                  <TextBlock Text="◉" FontSize="31" Foreground="#777A67"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="Waiting for a headset" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                <TextBlock Text="Connect Quest over USB or configure wireless ADB." Foreground="#9296A5" HorizontalAlignment="Center"/>
+                <TextBlock Text="Your Quest display will appear here" FontSize="18" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock Text="Connect a headset, then start the stream. Video is embedded in this window."
+                           FontSize="12" Foreground="#77716A" TextWrapping="Wrap"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
               </StackPanel>
             </Border>
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
-              <TextBlock Text="Stream controls will be enabled after a device is detected." Foreground="#9296A5" FontSize="12" VerticalAlignment="Center"/>
-              <Button Grid.Column="1" Content="Refresh devices" Click="OnRefreshDevicesClick"/>
-              <Button Grid.Column="2" Content="Start stream" IsEnabled="False"/>
-            </Grid>
           </Grid>
         </Border>
-        <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="18">
-          <Border Background="#171920" BorderBrush="#2A2D37" BorderThickness="1" CornerRadius="12" Padding="16">
-            <StackPanel Spacing="6">
-              <TextBlock Text="DEVICE" FontSize="10" Foreground="#9296A5" LetterSpacing="1"/>
-              <TextBlock Name="DeviceStatusText" Text="No device detected" FontSize="15" FontWeight="SemiBold"/>
-              <TextBlock Name="DeviceDetailsText" Text="ADB status has not been checked yet." Foreground="#9296A5" FontSize="12" TextWrapping="Wrap"/>
+
+        <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1"
+                CornerRadius="12" Padding="16,12">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+            <StackPanel Spacing="3" VerticalAlignment="Center">
+              <TextBlock Text="{Binding ActivityTitle}" FontWeight="SemiBold" FontSize="13"/>
+              <TextBlock Text="{Binding ActivityMessage}" FontSize="11" Foreground="#77716A"
+                         TextWrapping="Wrap" MaxHeight="44"/>
             </StackPanel>
-          </Border>
-          <Border Grid.Column="1" Background="#171920" BorderBrush="#2A2D37" BorderThickness="1" CornerRadius="12" Padding="16">
-            <StackPanel Spacing="6">
-              <TextBlock Text="ACTIVITY" FontSize="10" Foreground="#9296A5" LetterSpacing="1"/>
-              <TextBlock Name="ActivityStatusText" Text="Ready" FontSize="15" FontWeight="SemiBold"/>
-              <TextBlock Name="ActivityDetailsText" Text="Application initialized." Foreground="#9296A5" FontSize="12" TextWrapping="Wrap"/>
-            </StackPanel>
-          </Border>
-        </Grid>
+            <Button Grid.Column="1" Content="Refresh devices" Classes="subtle"
+                    Command="{Binding RefreshDevicesCommand}" IsEnabled="{Binding CanRefreshDevices}"
+                    VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Content="Start stream" Classes="primary"
+                    Command="{Binding StartStreamingCommand}" IsEnabled="{Binding CanStartStream}"
+                    VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Content="Stop stream" Classes="danger"
+                    Command="{Binding StopStreamingCommand}" IsVisible="{Binding IsStreaming}"
+                    IsEnabled="{Binding CanStopStream}" VerticalAlignment="Center"/>
+          </Grid>
+        </Border>
       </Grid>
+
+      <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="16">
+          <Border Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1" CornerRadius="14" Padding="18">
+            <StackPanel Spacing="12">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Device" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding DeviceStateText}" Foreground="#77716A" FontSize="12"/>
+              </StackPanel>
+              <TextBlock Text="ADB device" FontSize="11" Foreground="#77716A"/>
+              <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
+                        IsEnabled="{Binding CanChooseDevice}" MinHeight="38">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="9">
+                      <TextBlock Text="{Binding Serial}" FontWeight="Medium"/>
+                      <TextBlock Text="{Binding State}" Foreground="#77716A" FontSize="11"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+              <TextBlock Text="USB: connect the headset and accept the debugging prompt. Refresh to rescan."
+                         TextWrapping="Wrap" FontSize="11" Foreground="#77716A"/>
+            </StackPanel>
+          </Border>
+
+          <Border Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1" CornerRadius="14" Padding="18">
+            <StackPanel Spacing="11">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Wireless debugging" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Pair once, then connect with the device endpoint." FontSize="11"
+                           Foreground="#77716A" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock Text="Pairing address (host:port)" FontSize="11" Foreground="#77716A"/>
+              <TextBox Text="{Binding PairingEndpoint}" Watermark="192.168.1.20:37123"
+                       IsEnabled="{Binding CanChooseDevice}"/>
+              <TextBlock Text="Pairing code" FontSize="11" Foreground="#77716A"/>
+              <TextBox Text="{Binding PairingCode}" Watermark="Code shown in Quest"
+                       IsEnabled="{Binding CanChooseDevice}"/>
+              <Button Content="Pair headset" Command="{Binding PairWirelessCommand}"
+                      IsEnabled="{Binding CanChooseDevice}" HorizontalAlignment="Stretch"/>
+              <Border Height="1" Background="#EEE7DE" Margin="0,2"/>
+              <TextBlock Text="Device address (host:port)" FontSize="11" Foreground="#77716A"/>
+              <TextBox Text="{Binding DeviceEndpoint}" Watermark="192.168.1.20:5555"
+                       IsEnabled="{Binding CanChooseDevice}"/>
+              <Button Content="Connect over Wi-Fi" Classes="subtle"
+                      Command="{Binding ConnectWirelessCommand}" IsEnabled="{Binding CanChooseDevice}"
+                      HorizontalAlignment="Stretch"/>
+              <TextBlock Text="In Quest, enable Developer mode and Wireless debugging. The pairing port and connection port are different; enter each as shown in the headset."
+                         FontSize="11" Foreground="#77716A" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+
+          <Border Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1" CornerRadius="14" Padding="18">
+            <StackPanel Spacing="12">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Stream quality" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Changes apply to the next stream. Stop streaming to edit quality."
+                           FontSize="11" Foreground="#77716A" TextWrapping="Wrap"/>
+              </StackPanel>
+              <CheckBox Content="Automatic quality (recommended)"
+                        IsChecked="{Binding IsAutomaticQuality}" IsEnabled="{Binding CanEditQuality}"/>
+              <StackPanel Spacing="6" Opacity="{Binding ManualQualityOpacity}">
+                <TextBlock Text="Maximum resolution" FontSize="11" Foreground="#77716A"/>
+                <ComboBox ItemsSource="{Binding ResolutionOptions}" SelectedItem="{Binding SelectedResolution}"
+                          IsEnabled="{Binding CanEditQualityAndManualQuality}"/>
+                <TextBlock Text="Frames per second" FontSize="11" Foreground="#77716A"/>
+                <ComboBox ItemsSource="{Binding FrameRateOptions}" SelectedItem="{Binding SelectedFps}"
+                          IsEnabled="{Binding CanEditQualityAndManualQuality}"/>
+                <TextBlock Text="Video bitrate (Mbps)" FontSize="11" Foreground="#77716A"/>
+                <ComboBox ItemsSource="{Binding BitrateOptions}" SelectedItem="{Binding SelectedBitrateMbps}"
+                          IsEnabled="{Binding CanEditQualityAndManualQuality}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <TextBlock Text="Audio is not included in this version." FontSize="11"
+                     Foreground="#77716A" TextWrapping="Wrap" Margin="2,0,2,8"/>
+        </StackPanel>
+      </ScrollViewer>
     </Grid>
-    <Border Grid.Column="1" Grid.Row="1" Background="#171920" Padding="28,10">
-      <TextBlock Text="SPECTRA · Clean rewrite foundation" FontSize="11" Foreground="#777D91"/>
-    </Border>
   </Grid>
 </Window>
