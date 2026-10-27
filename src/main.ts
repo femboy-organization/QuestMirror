@@ -1,4 +1,5 @@
 import {app, BrowserWindow, dialog, ipcMain, shell} from 'electron'
+import path from 'path'
 import ExecController from './ExecController'
 import OAL from './OAL'
 import PackageDownloader from './PackageDownloader'
@@ -14,23 +15,37 @@ app.on('ready', async () => {
     
     // メインウィンドウを生成
     mainWindow = new BrowserWindow({
+        title: "SPECTRA",
+        width: 1400,
+        height: 850,
+        minWidth: 1050,
+        minHeight: 640,
+        backgroundColor: "#10141c",
         webPreferences: {
             nodeIntegration: true,
+            // The existing UI uses Electron's IPC API from local bundled scripts.
+            contextIsolation: false,
         },
-        width: 300,
-        height: 300,
-    })
+    });
 
     mainWindow.removeMenu();
 
-    // ウィンドウが閉じたとき
-    mainWindow.on('closed', () => {
+    const nativeHandle = mainWindow.getNativeWindowHandle();
+    const nativeHandleValue =
+        nativeHandle.length >= 8
+            ? nativeHandle.readBigUInt64LE(0).toString()
+            : nativeHandle.readUInt32LE(0).toString();
+    OAL.getInstance().setMirrorHostWindowHandle(nativeHandleValue);
+
+    // Stop child processes when the main application closes.
+    mainWindow.on("closed", () => {
+        ExecController.getInstance().stopMirroring();
         ExecController.getInstance().disconnect();
-        mainWindow = null
-    })
-    
-    // htmlをロード
-    mainWindow.loadURL('file://' + __dirname + '/index.html')
+        OAL.getInstance().setMirrorHostWindowHandle(null);
+        mainWindow = null;
+    });
+
+    mainWindow.loadFile(path.join(__dirname, "index.html"));
 
     // デバイスが接続されてないとき
     ipcMain.on("device_disconected", async () => {
@@ -81,26 +96,19 @@ app.on('ready', async () => {
         }
     })
 
-    ipcMain.on("directory_select_button_clicked", async (event, args) => {
-        if (mainWindow) { // メインウィンドウが存在するとき
-            let result = await dialog.showOpenDialog(mainWindow, {
-                properties: ['openDirectory', "createDirectory"]
-            });
-            let path = result.filePaths[0]
-            mainWindow.webContents.send("directory_selected", path)
+    ipcMain.on("directory_select_button_clicked", async () => {
+        if (!mainWindow) return;
+        const result = await dialog.showOpenDialog(mainWindow, {
+            properties: ["openDirectory", "createDirectory"],
+        });
+        if (!result.canceled && result.filePaths.length > 0) {
+            mainWindow.webContents.send("directory_selected", result.filePaths[0]);
         }
-    })
+    });
 
-    // ディレクトリ選択ボタンが押されたとき
-    ipcMain.on("directory_select_button_clicked", async (event, args) => {
-        if (mainWindow) { // メインウィンドウが存在するとき
-            let result = await dialog.showOpenDialog(mainWindow, {
-                properties: ['openDirectory', "createDirectory"]
-            });
-            let path = result.filePaths[0]
-            mainWindow.webContents.send("directory_selected", path)
-        }
-    })
+    ipcMain.on("mirror_fullscreen_changed", (_event, enabled: boolean) => {
+        mainWindow?.setFullScreen(Boolean(enabled));
+    });
 
     // キャプチャディレクトリが選択されていないとき
     ipcMain.on("no_capture_directory_is_selected", () => {
@@ -167,10 +175,16 @@ app.on('ready', async () => {
                 app.quit()
             } else {
                 mainWindow?.webContents.send("download_start");
-                downloader.downloadPackages(() => {
-                    setTimeout(() => { 
-                        mainWindow?.webContents.send("download_end")
-                    }, 2500)
+                downloader.downloadPackages((error?: Error) => {
+                    if (error) {
+                        const message = error.message || String(error);
+                        mainWindow?.webContents.send("download_error", message);
+                        dialog.showErrorBox("SPECTRA could not download scrcpy", message);
+                        return;
+                    }
+                    setTimeout(() => {
+                        mainWindow?.webContents.send("download_end");
+                    }, 250);
                 });
             }
         }
