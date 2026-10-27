@@ -122,13 +122,13 @@ export default class UIContoller implements ExecControllerListener, TimerEventLi
 
         this.fpsSlider.addEventListener("change", () => {
             let instance = ExecController.getInstance();
-            let val = this.maxScreenSizeSlider.value;
-            instance.setMaxSize(Number(val))
+            let val = this.fpsSlider.value;
+            instance.setFps(Number(val))
         })
 
         this.windowBorderCheckbox.addEventListener("change", () => {
             let instance = ExecController.getInstance();
-            let val = this.windowTitleTextInput.checked
+            let val = this.windowBorderCheckbox.checked;
             instance.setNeedBorder(val)
         })
 
@@ -150,23 +150,22 @@ export default class UIContoller implements ExecControllerListener, TimerEventLi
         })
 
         this.directorySelectButton.addEventListener("click", () => {
-            // メインプロセスに通信する
-            ipcRenderer.send('directory_select_button_clicked');
+            ipcRenderer.send("directory_select_button_clicked");
+        });
 
-            // メインプロセスからの通信を取得する
-            ipcRenderer.on("directory_selected", (event, args) => {
-                if (args) {
-                    let instance = ExecController.getInstance();
-                    instance.setCapturePath(args);
-                    this.directorySelectButton.innerText = args
-                }
-            })
-        })
+        ipcRenderer.on("directory_selected", (event, args) => {
+            if (args) {
+                let instance = ExecController.getInstance();
+                instance.setCapturePath(args);
+                this.directorySelectButton.innerText = args;
+            }
+        });
 
         this.fullscreenCheckbox.addEventListener("change", () => {
             let instance = ExecController.getInstance();
-            let val = this.fullscreenCheckbox.checked
-            instance.setIsFullScreen(val)
+            let val = this.fullscreenCheckbox.checked;
+            instance.setIsFullScreen(val);
+            ipcRenderer.send("mirror_fullscreen_changed", val);
         })
 
         this.cropCheckbox.addEventListener("change", () => {
@@ -285,6 +284,17 @@ export default class UIContoller implements ExecControllerListener, TimerEventLi
                  }
             );
         })
+
+        // Runtime tools could not be downloaded. Restore the UI rather than leaving
+        // the spinner running forever.
+        ipcRenderer.on("download_error", (event, message) => {
+            this.indicator.hide();
+            this.disenable();
+            this.deviceStatusLabel.innerText = "Download failed";
+            this.deviceStatusIcon.hidden = false;
+            this.deviceStatusIcon.setAttribute("style", "background-color: red");
+            console.error("Runtime download failed:", message);
+        });
 
         // デバイスの接続を確認できたとき
         ipcRenderer.on("device_conected", (event, args) => {
