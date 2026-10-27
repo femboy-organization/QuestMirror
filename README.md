@@ -31,7 +31,7 @@ npm start
 To package the Windows x64 application locally:
 
 ```powershell
-npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --out=artifacts --overwrite
+npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --no-asar --out=artifacts --overwrite
 ```
 
 The [Windows pre-release workflow](https://github.com/femboy-organization/QuestMirror/actions/workflows/windows-prerelease.yml) builds and packages the application on a Windows GitHub Actions runner and publishes the pre-release ZIP with a SHA-256 checksum.
