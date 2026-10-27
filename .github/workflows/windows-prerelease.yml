@@ -65,7 +65,7 @@ jobs:
       - name: Package Windows x64 application
         shell: pwsh
         run: |
-          npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --out=artifacts --overwrite
+          npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --no-asar --out=artifacts --overwrite
           if ($LASTEXITCODE -ne 0) { throw "Electron packaging failed with exit code $LASTEXITCODE" }
 
           $appDir = Join-Path $env:GITHUB_WORKSPACE "artifacts\SPECTRA-win32-x64"
