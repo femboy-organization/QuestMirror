@@ -1,80 +1,90 @@
-<html>
-
+<!doctype html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
   <link rel="stylesheet" type="text/css" href="index.css">
-  <title>Quest Mirror</title>
+  <title>SPECTRA</title>
 </head>
-
 <body>
+  <main id="stream-region" aria-label="Quest mirror display">
+    <div id="stream-placeholder">
+      <div class="stream-mark">S</div>
+      <h2>Quest display</h2>
+      <p>Connect your Meta Quest headset and press the play button.</p>
+      <p class="stream-help">When mirroring starts, the live display appears in this panel.</p>
+    </div>
+  </main>
 
-  <div class="tab-wrap">
-    <input id="TAB-01" type="radio" name="TAB" class="tab-switch" checked="checked" />
+  <aside class="tab-wrap" aria-label="SPECTRA controls">
+    <input id="TAB-01" type="radio" name="TAB" class="tab-switch" checked="checked">
     <label class="tab-label" for="TAB-01">Mirroring</label>
     <div class="tab-content">
-      <h4 class="top_title">Mirrroing</h4>
-      <span id="mirroring_start_button">
-        <img src="./resources/icon/ico_play.png" id="mirroring_start_image" width="47px" height="47px" alt="Start" />
-      </span>
+      <h1 class="top_title">SPECTRA</h1>
+      <p class="subtitle">Meta Quest display mirror</p>
 
-      <span id="mirroring_end_button">
-        <img src="./resources/icon/ico_stop.png" id="mirroring_stop_image" width="47px" height="47px" alt="Stop" />
-      </span>
+      <section class="transport-controls" aria-label="Mirroring controls">
+        <button id="mirroring_start_button" class="transport-button" type="button" aria-label="Start mirroring">
+          <img src="./resources/icon/ico_play.png" id="mirroring_start_image" width="47" height="47" alt="Start">
+        </button>
+        <button id="mirroring_end_button" class="transport-button" type="button" aria-label="Stop mirroring">
+          <img src="./resources/icon/ico_stop.png" id="mirroring_stop_image" width="47" height="47" alt="Stop">
+        </button>
+      </section>
 
-      <div>
-        <div id="mirroring_time">00:00:00</div>
-      </div>
+      <div id="mirroring_time" class="mirroring-time">00:00:00</div>
 
-      <div id="device_section">
+      <section id="device_section">
         <div id="device_status_section">
-          <div id="device_status_icon"></div>
-          <div id="device_status">Connecting...</div>
+          <span id="device_status_icon" aria-hidden="true"></span>
+          <span id="device_status">Connecting...</span>
         </div>
 
         <div id="connection_type_section">
-          <div>
-            <label>Wi-fi</label>
-            <input type="radio" id="wifi_checkbox">
-          </div>
-
-          <div>
-            <label>USB</label>
-            <input type="radio" id="usb_checkbox">
-          </div>
+          <label class="connection-choice">Wi-Fi
+            <input type="radio" id="wifi_checkbox" name="connection_type">
+          </label>
+          <label class="connection-choice">USB
+            <input type="radio" id="usb_checkbox" name="connection_type" checked>
+          </label>
         </div>
+      </section>
+
+      <div class="panel-note">
+        Use a USB cable first. Wireless mode is enabled after the headset is detected.
       </div>
     </div>
 
-    <input id="TAB-02" type="radio" name="TAB" class="tab-switch" />
+    <input id="TAB-02" type="radio" name="TAB" class="tab-switch">
     <label class="tab-label" for="TAB-02">Configuration</label>
-    <div class="tab-content">
+    <div class="tab-content configuration-content">
+      <h2 class="section-title">Configuration</h2>
 
-      <!-- crop -->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-one" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-one">crop</label>
+        <label class="cp_actab_label" for="tab-one">Crop view</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="crop">
-            <label>crop</label>
+            <label for="crop_checkbox">Enable crop</label>
             <input type="checkbox" id="crop_checkbox" checked>
-  
-            <label>right</label>
-            <input type="checkbox" id="crop_right_checkbox">
-  
-            <label>left</label>
-            <input type="checkbox" id="crop_left_checkbox" checked>
+            <div class="inline-options">
+              <label for="crop_left_checkbox">Left eye</label>
+              <input type="checkbox" id="crop_left_checkbox" checked>
+              <label for="crop_right_checkbox">Right eye</label>
+              <input type="checkbox" id="crop_right_checkbox">
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Max Screen Size -->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-two" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-two">Max Screen Size</label>
+        <label class="cp_actab_label" for="tab-two">Maximum screen size</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="max_screen_size">
             <div class="range">
-              <div class="configuratin_item_label">Max Screen Size</div>
+              <label class="configuratin_item_label" for="max_screen_size_slider">Maximum screen size</label>
               <div class="slider_item">
                 <input class="slider" id="max_screen_size_slider" type="range" min="512" max="1920" value="1028">
                 <span class="slider_value">1028</span>
@@ -84,14 +94,13 @@
         </div>
       </div>
 
-      <!--fps-->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-three" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-three">FPS</label>
+        <label class="cp_actab_label" for="tab-three">Frame rate</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="fps">
             <div class="range">
-              <div class="configuratin_item_label">FPS</div>
+              <label class="configuratin_item_label" for="fps_slider">Frames per second</label>
               <div class="slider_item">
                 <input class="slider" id="fps_slider" type="range" min="5" max="72" value="60">
                 <span class="slider_value">60</span>
@@ -101,63 +110,59 @@
         </div>
       </div>
 
-      <!--FullScreen-->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-four" type="checkbox" name="tabs">
         <label class="cp_actab_label" for="tab-four">Fullscreen</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="fullscreen">
-            <label class="configuratin_item_label">Fullscreen</label>
+            <label class="configuratin_item_label" for="fullscreen_checkbox">Fullscreen application window</label>
             <input type="checkbox" id="fullscreen_checkbox">
           </div>
         </div>
       </div>
 
-      <!--Window Border-->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-five" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-five">Window Border</label>
+        <label class="cp_actab_label" for="tab-five">Display window border</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="window_border">
-            <label class="configuratin_item_label">Window Border</label>
-            <input type="checkbox" id="window_border_checkbox">
+            <label class="configuratin_item_label" for="window_border_checkbox">Show scrcpy border</label>
+            <input type="checkbox" id="window_border_checkbox" checked>
           </div>
         </div>
       </div>
 
-      <!--Window Name-->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-six" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-six">Window Name</label>
+        <label class="cp_actab_label" for="tab-six">Display window title</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="window_name">
-            <div class="range">
-              <label class="configuratin_item_label">Window Name</label>
-              <input type="text" id="window_name_input" name="name" minlength="1" maxlength="256" size="12">
-            </div>
+            <label class="configuratin_item_label" for="window_name_input">Window title</label>
+            <input type="text" id="window_name_input" name="name" maxlength="256" size="24" placeholder="SPECTRA">
           </div>
         </div>
       </div>
 
-      <!--Capture-->
       <div class="cp_actab">
         <input class="cp_actab_input" id="tab-seven" type="checkbox" name="tabs">
-        <label class="cp_actab_label" for="tab-seven">Capture</label>
+        <label class="cp_actab_label" for="tab-seven">Recording</label>
         <div class="cp_actab-content">
           <div class="configuration_item" id="capture">
-            <label>Capture</label>
+            <label for="capture_checkbox">Record mirroring</label>
             <input type="checkbox" id="capture_checkbox">
-            <button type="button" id="directory_select_button" disabled>No Directory Selected</button>
+            <button type="button" id="directory_select_button" disabled>No directory selected</button>
           </div>
         </div>
-        </div>
       </div>
+
+      <p class="config-note">Changes to mirroring quality are applied on the next start.</p>
     </div>
-  </div>
+
+    <footer class="app-footer">SPECTRA · Windows x64 · Pre-release</footer>
+  </aside>
 
   <script>var exports = { "__esModule": true };</script>
   <script type="text/javascript" defer src="./Renderer.js"></script>
   <script type="text/javascript" src="./Slider.js"></script>
-
 </body>
 </html>
