@@ -50,7 +50,7 @@ app.on('ready', async () => {
     // デバイスが接続されてないとき
     ipcMain.on("device_disconected", async () => {
         if (mainWindow) {
-            var options = {
+            const options: Electron.MessageBoxOptions = {
                 title: 'No device is connected',
                 type: 'info',
                 buttons: ['OK', 'Cancel'],
@@ -73,7 +73,7 @@ app.on('ready', async () => {
     // デバイスがワイアレス接続されたとき
     ipcMain.on("device_wireless_connected", () => {
         if (mainWindow) {
-            var options = {
+            const options: Electron.MessageBoxOptions = {
                 title: 'Device is connected',
                 type: 'info',
                 buttons: ['OK'],
@@ -113,7 +113,7 @@ app.on('ready', async () => {
     // キャプチャディレクトリが選択されていないとき
     ipcMain.on("no_capture_directory_is_selected", () => {
         if (mainWindow) {
-            var options = {
+            const options: Electron.MessageBoxOptions = {
                 title: 'No capture directory is selected',
                 type: 'info',
                 buttons: ['OK'],
@@ -136,7 +136,7 @@ app.on('ready', async () => {
             detail += "Press OK button to open the Github page(https://github.com/r-asada-ab/QuestMirror)."
             detail +=  "\n" + "\n" 
             detail += "Check Install on Mac."
-            var options = {
+            const options: Electron.MessageBoxOptions = {
                 title: 'Download',
                 type: 'info',
                 buttons: ['OK', 'Cancel'],
@@ -162,7 +162,7 @@ app.on('ready', async () => {
             }
             detail += "\n" + "Press button to download it."
 
-            var options = {
+            const options: Electron.MessageBoxOptions = {
                 title: 'Download',
                 type: 'info',
                 buttons: ['OK', 'Cancel'],
