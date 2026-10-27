@@ -104,7 +104,10 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
         style |= WsChild | WsClipSiblings | WsClipChildren | WsVisible;
         SetWindowLongPtrW(window, GwlStyle, new IntPtr(unchecked((long)style)));
 
-        SetParent(window, _hostHandle);
+        _ = SetParent(window, _hostHandle);
+        if (GetParent(window) != _hostHandle)
+            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not embed the scrcpy window inside SPECTRA.");
+
         _scrcpyHandle = window;
 
         ShowWindow(_hostHandle, SwShow);
@@ -194,6 +197,9 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetParent(IntPtr hWnd);
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW", SetLastError = true)]
     private static extern IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);

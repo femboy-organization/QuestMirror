@@ -7,7 +7,7 @@ public static class AdbOutputParser
         ArgumentNullException.ThrowIfNull(output);
         var devices = new List<AdbDevice>();
 
-        foreach (var rawLine in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var rawLine in output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
         {
             var line = rawLine.Trim();
             if (line.Length == 0 ||

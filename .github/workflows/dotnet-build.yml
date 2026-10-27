@@ -72,8 +72,11 @@ jobs:
       - name: Restore
         run: dotnet restore SPECTRA.sln
 
-      - name: Run unit tests and Release build
-        run: dotnet test SPECTRA.sln --configuration Release --no-restore
+      - name: Build Release
+        run: dotnet build SPECTRA.sln --configuration Release --no-restore
+
+      - name: Run unit tests
+        run: dotnet test SPECTRA.sln --configuration Release --no-restore --no-build
 
       - name: Publish self-contained Windows x64 application
         shell: pwsh
