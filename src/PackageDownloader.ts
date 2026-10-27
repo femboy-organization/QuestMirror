@@ -1,44 +1,33 @@
 import OAL from "./OAL";
 import Package from "./Package";
 
-// scrcpyのassetsのダウンローダー
+// Downloads the runtime tools required for device mirroring.
 export default class PackageDownloader {
-
-    // インスタンス
     private static instance: PackageDownloader;
-    // ダウンロードが必要なパッケージ
     private requirePackages: Package[];
 
-    // コンストラクタ
     private constructor() {
-        this.requirePackages = []
+        this.requirePackages = [];
     }
 
-    // インスタンスを取得する
     public static getInstance(): PackageDownloader {
-        if (!this.instance) { // インスタンスが存在しないとき
+        if (!this.instance) {
             this.instance = new PackageDownloader();
         }
-        return this.instance
+        return this.instance;
     }
 
-    // ダウンロードが必要なパッケージを返す
     public getRequirePackages(): Package[] {
         return this.requirePackages;
     }
 
-    // ダウンロード済みか
     public async getHasDownloaded(): Promise<boolean> {
-        let packages = await OAL.getInstance().checkPackages();
-        if (packages.length == 0) {
-            return true;
-        }
+        const packages = await OAL.getInstance().checkPackages();
         this.requirePackages = packages;
-        return false
+        return packages.length === 0;
     }
 
-    // assetsをダウンロードする
-    public downloadPackages(callback: Function): void {
+    public downloadPackages(callback: (error?: Error) => void): void {
         OAL.getInstance().downloadPackages(this.requirePackages, callback);
     }
 }
