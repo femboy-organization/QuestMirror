@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "npm run build && electron .",
-    "package:win": "npm run build && npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --out=release --overwrite",
+    "package:win": "npm run build && npx --yes @electron/packager@20.3.0 . SPECTRA --platform=win32 --arch=x64 --no-asar --out=release --overwrite",
     "test": "npm run build"
   },
   "devDependencies": {
