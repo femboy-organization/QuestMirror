@@ -16,7 +16,6 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        // The very first managed action records that Windows successfully entered the launcher.
         WriteLauncherLog($"ENTRYPOINT reached. PID={Environment.ProcessId}; OS={Environment.OSVersion}; " +
                          $"architecture={RuntimeInformation.ProcessArchitecture}; argsCount={args.Length}; " +
                          $"baseDirectory='{AppContext.BaseDirectory}'.");
@@ -48,7 +47,6 @@ internal static class Program
                 WorkingDirectory = Path.GetDirectoryName(applicationPath)!,
                 UseShellExecute = false
             };
-
             foreach (var argument in args)
                 startInfo.ArgumentList.Add(argument);
 
@@ -72,7 +70,7 @@ internal static class Program
             WriteLauncherLog($"FATAL: Could not start the application process: {exception}");
             ShowMessageBox(IntPtr.Zero,
                 $"SPECTRA could not start.\n\n{exception.Message}\n\n" +
-                "Diagnostic logs are saved under %LOCALAPPDATA%\\SPECTRA\\Logs, or under %TEMP%\\SPECTRA\\Logs if that folder is not writable.",
+                "Diagnostic logs are saved in the application's logs folder, or under %LOCALAPPDATA%\\SPECTRA\\Logs / %TEMP%\\SPECTRA\\Logs if necessary.",
                 "SPECTRA could not start",
                 MessageBoxError);
             return 1;
@@ -100,13 +98,8 @@ internal static class Program
                     _activeLogPath = path;
                     return;
                 }
-                catch
-                {
-                    // Try the next writable location; the launcher must still attempt application startup.
-                }
+                catch { }
             }
-
-            // No persistent location is writable. Do not throw before attempting the actual app launch.
             try { Debug.WriteLine(line); } catch { }
         }
     }
@@ -116,11 +109,12 @@ internal static class Program
         if (!string.IsNullOrWhiteSpace(_activeLogPath))
             yield return _activeLogPath;
 
+        yield return Path.Combine(AppContext.BaseDirectory, "logs", $"launcher-{DateTime.Now:yyyy-MM-dd}.log");
+
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         if (!string.IsNullOrWhiteSpace(localAppData))
             yield return Path.Combine(localAppData, "SPECTRA", "Logs", $"launcher-{DateTime.Now:yyyy-MM-dd}.log");
 
         yield return Path.Combine(Path.GetTempPath(), "SPECTRA", "Logs", $"launcher-{DateTime.Now:yyyy-MM-dd}.log");
-        yield return Path.Combine(AppContext.BaseDirectory, "logs", $"launcher-{DateTime.Now:yyyy-MM-dd}.log");
     }
 }
