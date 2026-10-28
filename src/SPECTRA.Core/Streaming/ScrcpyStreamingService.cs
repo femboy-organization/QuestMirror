@@ -39,7 +39,8 @@ public sealed class ScrcpyStreamingService
 
         startInfo.ArgumentList.Add($"--serial={deviceSerial}");
         startInfo.ArgumentList.Add($"--window-title={title}");
-        startInfo.ArgumentList.Add("--video-source=display"); // Use the normal 2D Android display stream, not a camera/3D source.\n        startInfo.ArgumentList.Add("--no-audio");
+        startInfo.ArgumentList.Add("--video-source=display"); // Use the normal 2D Android display stream, not a camera/3D source.
+        startInfo.ArgumentList.Add("--no-audio");
         startInfo.ArgumentList.Add("--no-control");
         startInfo.ArgumentList.Add("--window-borderless");
         startInfo.ArgumentList.Add($"--max-size={options.MaxSize}");
