@@ -1,7 +1,7 @@
 # SPECTRA
 
-[![Windows build](https://github.com/femboy-organization/QuestMirror/actions/workflows/dotnet-build.yml/badge.svg?branch=main)](https://github.com/femboy-organization/QuestMirror/actions/workflows/dotnet-build.yml)
-[![Latest pre-release](https://img.shields.io/github/v/release/femboy-organization/QuestMirror?include_prereleases&label=latest%20pre-release)](https://github.com/femboy-organization/QuestMirror/releases)
+[![Windows build](https://github.com/femboy-organization/SPECTRA/actions/workflows/dotnet-build.yml/badge.svg?branch=main)](https://github.com/femboy-organization/SPECTRA/actions/workflows/dotnet-build.yml)
+[![Latest pre-release](https://img.shields.io/github/v/release/femboy-organization/SPECTRA?include_prereleases&label=latest%20pre-release)](https://github.com/femboy-organization/SPECTRA/releases)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 SPECTRA is a Windows x64 desktop application for mirroring a Meta Quest headset inside the main application window. It uses ADB for device connectivity and scrcpy for video streaming.
@@ -10,10 +10,10 @@ SPECTRA is a Windows x64 desktop application for mirroring a Meta Quest headset 
 
 ## Download
 
-Get the latest pre-release from [GitHub Releases](https://github.com/femboy-organization/QuestMirror/releases).
+Get the latest pre-release from [GitHub Releases](https://github.com/femboy-organization/SPECTRA/releases).
 
 - **Windows installer:** run the `SPECTRA-*-Setup-win-x64.exe` installer and launch SPECTRA from the Start menu or desktop.
-- **Portable version:** extract `SPECTRA-*-win-x64.zip` and run `SPECTRA.exe`.
+- **Portable version:** extract `SPECTRA-*-win-x64.zip` and run the root `SPECTRA.exe`. It launches the application from `bin\SPECTRA.exe`; application DLLs and runtime files live under `bin`, while scrcpy/ADB are in `bin\tools`.
 - **Integrity checks:** each package has a matching `.sha256` file attached to the release.
 
 Both packages are self-contained and include the official scrcpy/ADB tools. A separate .NET installation is not required to run the packaged application.
@@ -33,6 +33,10 @@ Both packages are self-contained and include the official scrcpy/ADB tools. A se
 
 The wireless pairing endpoint and ADB connection endpoint use different ports. SPECTRA enables streaming only when ADB reports the device state as `device`. If the state is `unauthorized`, unlock the headset and accept the debugging prompt.
 
+## Diagnostics and logs
+
+SPECTRA writes a daily diagnostic log to `%LOCALAPPDATA%\SPECTRA\Logs\spectra-YYYY-MM-DD.log`. Launcher startup failures are recorded in `launcher-YYYY-MM-DD.log` in the same directory. Logs include application lifecycle events, ADB/scrcpy process failures, window embedding errors, unhandled exceptions and timing measurements used to diagnose startup or streaming performance. Wireless pairing codes are not logged. Attach the latest log file when reporting a bug.
+
 ## Streaming
 
 - **Automatic quality** is enabled by default: 1920 px maximum size, 60 FPS, and 8 Mbps video bitrate.
@@ -50,7 +54,7 @@ dotnet build SPECTRA.sln --configuration Release --no-restore
 dotnet test SPECTRA.sln --configuration Release --no-build
 ```
 
-The GitHub Actions workflow builds and tests the application on pull requests. For pushes to `main`, it downloads the official scrcpy v5.0.1 Windows bundle, verifies its SHA-256, packages the self-contained application, creates the installer and portable ZIP, and publishes a GitHub pre-release. The release workflow is the supported path for producing complete distribution packages; a local `dotnet publish` without the bundled scrcpy tools is not a complete package.
+The GitHub Actions workflow builds and tests the application and launcher on pull requests. For pushes to `main`, it downloads the official scrcpy v5.0.1 Windows bundle, verifies its SHA-256, publishes the main self-contained application into `bin`, compiles a small native launcher as the root `SPECTRA.exe`, validates that there are no root-level DLL files, creates the installer and portable ZIP, and publishes a GitHub pre-release. The release workflow is the supported path for producing complete distribution packages; a local `dotnet publish` without the bundled scrcpy tools and launcher packaging step is not a complete package.
 
 ## Project status and limitations
 
@@ -65,7 +69,7 @@ SPECTRA currently targets Windows x64. Linux and macOS are not supported at runt
 
 ## Contributing and security
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report suspected vulnerabilities using the process in [SECURITY.md](SECURITY.md), not through a public issue. Bug reports and feature requests can be opened with the repository's [issue templates](https://github.com/femboy-organization/QuestMirror/issues/new/choose).
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report suspected vulnerabilities using the process in [SECURITY.md](SECURITY.md), not through a public issue. Bug reports and feature requests can be opened with the repository's [issue templates](https://github.com/femboy-organization/SPECTRA/issues/new/choose).
 
 ## License
 

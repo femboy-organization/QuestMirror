@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SPECTRA.Core.Diagnostics;
 
 namespace SPECTRA.Core.Settings;
 
@@ -28,13 +29,19 @@ public sealed class SettingsService
         try
         {
             if (!File.Exists(_settingsPath))
+            {
+                AppLog.Debug("Settings", $"Settings file does not exist yet; defaults will be used. Path='{_settingsPath}'.");
                 return new AppSettings();
+            }
 
             var json = File.ReadAllText(_settingsPath);
-            return (JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings()).Normalize();
+            var settings = (JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings()).Normalize();
+            AppLog.Debug("Settings", $"Settings loaded from '{_settingsPath}'.");
+            return settings;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException)
         {
+            AppLog.Exception("Settings", $"Could not load settings from '{_settingsPath}'; defaults will be used.", exception);
             return new AppSettings();
         }
     }
@@ -69,6 +76,7 @@ public sealed class SettingsService
             }
 
             File.Move(temporaryPath, _settingsPath, overwrite: true);
+            AppLog.Debug("Settings", $"Settings saved to '{_settingsPath}'.");
         }
         finally
         {

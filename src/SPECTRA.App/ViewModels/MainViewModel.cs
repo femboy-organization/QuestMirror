@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using SPECTRA.App.Platforms;
 using SPECTRA.Core.Devices;
+using SPECTRA.Core.Diagnostics;
 using SPECTRA.Core.Settings;
 using SPECTRA.Core.Streaming;
 
@@ -22,6 +24,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private Task? _monitorTask;
     private ScrcpySession? _session;
     private string? _sessionSerial;
+    private string? _lastDeviceSnapshot;
     private AdbDevice? _selectedDevice;
     private string _connectionSummary = "Checking for a headset…";
     private string _activityTitle = "Ready";
@@ -48,6 +51,12 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _selectedBitrateMbps = _settings.BitrateMbps;
         _pairingEndpoint = _settings.PairingEndpoint;
         _deviceEndpoint = _settings.DeviceEndpoint;
+
+        AppLog.Info("Settings",
+            $"Settings loaded. automaticQuality={_automaticQuality}; resolution={_selectedResolution}; " +
+            $"fps={_selectedFps}; bitrateMbps={_selectedBitrateMbps}; " +
+            $"pairingEndpointConfigured={!string.IsNullOrWhiteSpace(_pairingEndpoint)}; " +
+            $"deviceEndpointConfigured={!string.IsNullOrWhiteSpace(_deviceEndpoint)}.");
 
         Devices = [];
         ResolutionOptions = new ObservableCollection<int>(AppSettings.AllowedResolutions);
@@ -79,6 +88,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             if (SetProperty(ref _selectedDevice, value))
             {
+                AppLog.Debug("UI", $"Selected device changed to '{value?.Serial ?? "(none)"}' (state={value?.State ?? "(none)"}).");
                 OnPropertyChanged(nameof(IsDeviceAuthorized));
                 OnPropertyChanged(nameof(CanStartStream));
                 OnPropertyChanged(nameof(DeviceStateText));
@@ -251,8 +261,20 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     public async Task InitializeAsync()
     {
-        await RefreshDevicesAsync();
-        _monitorTask ??= MonitorDevicesAsync(_lifetime.Token);
+        var stopwatch = Stopwatch.StartNew();
+        AppLog.Info("Lifecycle", "View-model initialization started.");
+
+        try
+        {
+            await RefreshDevicesAsync();
+            _monitorTask ??= MonitorDevicesAsync(_lifetime.Token);
+            AppLog.Info("Performance", $"View-model initialization completed in {stopwatch.ElapsedMilliseconds} ms.");
+        }
+        catch (Exception exception)
+        {
+            AppLog.Exception("Lifecycle", "View-model initialization failed.", exception);
+            throw;
+        }
     }
 
     public async Task RefreshDevicesAsync()
@@ -267,10 +289,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             await RefreshDevicesCoreAsync(silent: false, _lifetime.Token);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("ADB", "Device refresh failed.", exception);
             ActivityTitle = "Device scan failed";
-            ActivityMessage = ex.Message;
+            ActivityMessage = exception.Message;
         }
         finally
         {
@@ -288,9 +311,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             IsBusy = true;
             ActivityTitle = "Pairing over Wi-Fi";
+            AppLog.Info("ADB", $"Wireless pairing started; endpoint='{PairingEndpoint}'. Pairing code is deliberately not logged.");
             var result = await _adb.PairAsync(PairingEndpoint, PairingCode, _lifetime.Token);
             ActivityMessage = result.Message;
             ActivityTitle = result.IsSuccess ? "Wireless pairing complete" : "Wireless pairing failed";
+            AppLog.Info("ADB", $"Wireless pairing completed; success={result.IsSuccess}. Response details are available in the UI.");
             if (result.IsSuccess)
             {
                 PairingCode = string.Empty;
@@ -298,10 +323,11 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("ADB", "Wireless pairing threw an exception.", exception);
             ActivityTitle = "Wireless pairing failed";
-            ActivityMessage = ex.Message;
+            ActivityMessage = exception.Message;
         }
         finally
         {
@@ -319,17 +345,20 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         {
             IsBusy = true;
             ActivityTitle = "Connecting over Wi-Fi";
+            AppLog.Info("ADB", $"Wireless connection requested for endpoint '{DeviceEndpoint}'.");
             var result = await _adb.ConnectAsync(DeviceEndpoint, _lifetime.Token);
             ActivityTitle = result.IsSuccess ? "Wireless connection confirmed" : "Wireless connection failed";
             ActivityMessage = result.Message;
+            AppLog.Info("ADB", $"Wireless connection completed; success={result.IsSuccess}; message='{result.Message.Trim()}'.");
             if (result.IsSuccess)
                 await RefreshDevicesCoreAsync(silent: true, _lifetime.Token);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("ADB", "Wireless connection threw an exception.", exception);
             ActivityTitle = "Wireless connection failed";
-            ActivityMessage = ex.Message;
+            ActivityMessage = exception.Message;
         }
         finally
         {
@@ -343,6 +372,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (!await _operationLock.WaitAsync(0, _lifetime.Token))
             return;
 
+        var stopwatch = Stopwatch.StartNew();
         ScrcpySession? session = null;
         try
         {
@@ -352,6 +382,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 ActivityMessage = SelectedDevice?.State == "unauthorized"
                     ? "Unlock the headset and accept the USB debugging prompt, then refresh devices."
                     : "Connect a Quest using USB or Wireless debugging before starting a stream.";
+                AppLog.Warn("Streaming", $"Stream start rejected; selected device state='{SelectedDevice?.State ?? "(none)"}'.");
                 return;
             }
 
@@ -360,6 +391,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             ActivityMessage = "Starting scrcpy and waiting for its video window.";
             var serial = SelectedDevice.Serial;
             var options = StreamingOptions.FromSettings(_settings);
+            AppLog.Info("Streaming",
+                $"Starting stream; device='{serial}'; qualityMode={(options.IsAutomatic ? "automatic" : "manual")}; " +
+                $"maxSize={options.MaxSize}; fps={options.FramesPerSecond}; bitrateMbps={options.BitrateMbps}.");
+
             session = await _streaming.StartAsync(serial, options, _lifetime.Token);
             await _videoSurface.AttachAsync(session, _lifetime.Token);
 
@@ -371,20 +406,24 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 : "Streaming over USB";
             ActivityTitle = "Streaming";
             ActivityMessage = $"Embedded video active at {options.MaxSize} px, {options.FramesPerSecond} FPS, {options.BitrateMbps} Mbps.";
+            AppLog.Info("Performance",
+                $"Video stream is attached. scrcpyPid={session.ProcessId}; startupAndAttachMs={stopwatch.ElapsedMilliseconds}.");
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
+            AppLog.Debug("Streaming", "Stream startup was cancelled because the application is closing.");
             _videoSurface.Detach();
             if (session is not null)
                 await session.StopAsync();
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("Streaming", "Could not start or attach the scrcpy stream.", exception);
             _videoSurface.Detach();
             if (session is not null)
                 await session.StopAsync();
             ActivityTitle = "Could not start stream";
-            ActivityMessage = ex.Message;
+            ActivityMessage = exception.Message;
             IsStreaming = false;
         }
         finally
@@ -402,12 +441,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         try
         {
             IsBusy = true;
+            AppLog.Info("Streaming", "User requested that streaming stop.");
             await StopStreamingCoreAsync("Streaming stopped.");
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("Streaming", "Error stopping the stream.", exception);
             ActivityTitle = "Error stopping stream";
-            ActivityMessage = ex.Message;
+            ActivityMessage = exception.Message;
             IsStreaming = false;
         }
         finally
@@ -421,6 +462,21 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     {
         var previousSerial = SelectedDevice?.Serial;
         var result = await _adb.ListDevicesAsync(cancellationToken);
+        var snapshot = result.IsAvailable
+            ? string.Join(";", result.Devices.OrderBy(device => device.Serial, StringComparer.Ordinal)
+                .Select(device => $"{device.Serial}={device.State}"))
+            : "<unavailable>";
+
+        if (!string.Equals(snapshot, _lastDeviceSnapshot, StringComparison.Ordinal))
+        {
+            _lastDeviceSnapshot = snapshot;
+            if (!result.IsAvailable)
+                AppLog.Warn("ADB", $"ADB is unavailable: {result.Message}");
+            else if (result.Devices.Count == 0)
+                AppLog.Info("ADB", "ADB is available, but no devices are currently connected.");
+            else
+                AppLog.Info("ADB", $"ADB device snapshot changed: {snapshot}.");
+        }
 
         if (!result.IsAvailable)
         {
@@ -440,6 +496,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         if (_sessionSerial is not null &&
             !result.Devices.Any(device => device.Serial == _sessionSerial && device.State == "device"))
         {
+            AppLog.Warn("ADB", $"The streaming device '{_sessionSerial}' is no longer connected or authorized.");
             await StopStreamingCoreAsync("The selected headset disconnected or is no longer authorized. Streaming has stopped.");
         }
 
@@ -467,6 +524,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private async Task MonitorDevicesAsync(CancellationToken cancellationToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+        AppLog.Debug("DeviceMonitor", "Background device monitoring started (3-second interval).");
+
         try
         {
             while (await timer.WaitForNextTickAsync(cancellationToken))
@@ -476,21 +535,36 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
                 try
                 {
-                    if (_session is not null && _session.HasExited)
+                    try
                     {
-                        var output = _session.RecentOutput;
-                        _videoSurface.Detach();
-                        await _session.StopAsync();
-                        _session = null;
-                        _sessionSerial = null;
-                        IsStreaming = false;
-                        ActivityTitle = "Stream ended unexpectedly";
-                        ActivityMessage = string.IsNullOrWhiteSpace(output)
-                            ? "scrcpy closed unexpectedly. Refresh devices and try again."
-                            : $"scrcpy closed unexpectedly: {output}";
-                    }
+                        if (_session is not null && _session.HasExited)
+                        {
+                            var endedSession = _session!;
+                            var output = endedSession.RecentOutput;
+                            AppLog.Error("Streaming",
+                                $"scrcpy exited unexpectedly. PID={endedSession.ProcessId}; exitCode={endedSession.ExitCode?.ToString() ?? "unknown"}; " +
+                                $"recentOutput='{output}'.");
+                            _videoSurface.Detach();
+                            await endedSession.StopAsync();
+                            _session = null;
+                            _sessionSerial = null;
+                            IsStreaming = false;
+                            ActivityTitle = "Stream ended unexpectedly";
+                            ActivityMessage = string.IsNullOrWhiteSpace(output)
+                                ? "scrcpy closed unexpectedly. Refresh devices and try again."
+                                : $"scrcpy closed unexpectedly: {output}";
+                        }
 
-                    await RefreshDevicesCoreAsync(silent: true, cancellationToken);
+                        await RefreshDevicesCoreAsync(silent: true, cancellationToken);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        AppLog.Exception("DeviceMonitor", "Background monitoring cycle failed; polling will retry.", exception);
+                    }
                 }
                 finally
                 {
@@ -498,7 +572,14 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            AppLog.Debug("DeviceMonitor", "Background device monitoring stopped.");
+        }
+        catch (Exception exception)
+        {
+            AppLog.Exception("DeviceMonitor", "Background device monitoring stopped unexpectedly.", exception);
+        }
     }
 
     private async Task StopStreamingCoreAsync(string message)
@@ -509,7 +590,10 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _sessionSerial = null;
 
         if (session is not null)
+        {
+            AppLog.Debug("Streaming", $"Stopping scrcpy session PID={session.ProcessId}.");
             await session.StopAsync();
+        }
 
         IsStreaming = false;
         UpdateConnectionSummary();
@@ -547,12 +631,13 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             await _settingsService.SaveAsync(_settings, _lifetime.Token);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch (Exception ex)
+        catch (Exception exception)
         {
+            AppLog.Exception("Settings", "Settings could not be saved.", exception);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 ActivityTitle = "Settings could not be saved";
-                ActivityMessage = ex.Message;
+                ActivityMessage = exception.Message;
             });
         }
     }
@@ -582,6 +667,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        AppLog.Info("Lifecycle", "View-model disposal started.");
         _lifetime.Cancel();
         if (_monitorTask is not null)
         {
@@ -599,6 +685,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             _operationLock.Release();
             _operationLock.Dispose();
             _lifetime.Dispose();
+            AppLog.Info("Lifecycle", "View-model disposal completed.");
         }
     }
 }

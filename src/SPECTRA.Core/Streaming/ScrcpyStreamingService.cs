@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using SPECTRA.Core.Diagnostics;
 using SPECTRA.Core.Tools;
 
 namespace SPECTRA.Core.Streaming;
@@ -45,15 +46,23 @@ public sealed class ScrcpyStreamingService
         startInfo.ArgumentList.Add($"--max-fps={options.FramesPerSecond}");
         startInfo.ArgumentList.Add($"--video-bit-rate={options.BitrateMbps}M");
 
+        AppLog.Info("scrcpy",
+            $"Launching '{executable}' for device '{deviceSerial}' with maxSize={options.MaxSize}, " +
+            $"fps={options.FramesPerSecond}, bitrateMbps={options.BitrateMbps}, workingDirectory='{startInfo.WorkingDirectory}'.");
+
+        var stopwatch = Stopwatch.StartNew();
         var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
         try
         {
             if (!process.Start())
                 throw new InvalidOperationException("Windows could not start scrcpy.");
+
+            AppLog.Debug("Performance", $"scrcpy process creation completed in {stopwatch.ElapsedMilliseconds} ms; PID={process.Id}.");
             return Task.FromResult(new ScrcpySession(process, title));
         }
-        catch
+        catch (Exception exception)
         {
+            AppLog.Exception("scrcpy", "Failed to start the scrcpy process.", exception);
             process.Dispose();
             throw;
         }

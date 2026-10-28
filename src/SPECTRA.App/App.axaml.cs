@@ -1,18 +1,35 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using SPECTRA.Core.Diagnostics;
 
 namespace SPECTRA.App;
 
 public partial class App : Application
 {
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AppLog.Debug("Application", "Loading Avalonia application resources.");
+        AvaloniaXamlLoader.Load(this);
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            desktop.MainWindow = new MainWindow();
+        try
+        {
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                AppLog.Debug("Application", "Creating the main window.");
+                desktop.MainWindow = new MainWindow();
+            }
 
-        base.OnFrameworkInitializationCompleted();
+            base.OnFrameworkInitializationCompleted();
+            AppLog.Info("Application", "Avalonia framework initialization completed.");
+        }
+        catch (Exception exception)
+        {
+            AppLog.Exception("Application", "Avalonia framework initialization failed.", exception);
+            throw;
+        }
     }
 }

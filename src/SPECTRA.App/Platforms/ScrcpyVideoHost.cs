@@ -1,8 +1,10 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform;
+using SPECTRA.Core.Diagnostics;
 using SPECTRA.Core.Streaming;
 
 namespace SPECTRA.App.Platforms;
@@ -44,14 +46,20 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
             0, 0, 1, 1, parent.Handle, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
 
         if (_hostHandle == IntPtr.Zero)
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not create the native video surface.");
+        {
+            var exception = new Win32Exception(Marshal.GetLastWin32Error(), "Could not create the native video surface.");
+            AppLog.Exception("VideoHost", "CreateWindowExW failed while creating the video surface.", exception);
+            throw exception;
+        }
 
         ShowWindow(_hostHandle, SwHide);
+        AppLog.Debug("VideoHost", $"Created native video host. HWND=0x{_hostHandle.ToInt64():X}.");
         return new PlatformHandle(_hostHandle, "HWND");
     }
 
     protected override void DestroyNativeControlCore(IPlatformHandle control)
     {
+        AppLog.Debug("VideoHost", "Destroying native video host.");
         Detach();
         var handle = control.Handle;
         if (handle != IntPtr.Zero && IsWindow(handle))
@@ -74,6 +82,10 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
         if (_hostHandle == IntPtr.Zero || !IsWindow(_hostHandle))
             throw new InvalidOperationException("The video area is not ready. Wait for the main window to finish opening.");
 
+        var stopwatch = Stopwatch.StartNew();
+        AppLog.Debug("VideoHost",
+            $"Waiting for scrcpy window. PID={session.ProcessId}; expectedTitle='{session.WindowTitle}'; timeoutSeconds=15.");
+
         var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
         IntPtr window = IntPtr.Zero;
 
@@ -83,10 +95,11 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
             if (session.HasExited)
             {
                 var details = session.RecentOutput;
-                throw new InvalidOperationException(
-                    string.IsNullOrWhiteSpace(details)
-                        ? "scrcpy exited before its video window appeared. Verify the headset is authorized in ADB."
-                        : $"scrcpy exited before its video window appeared: {details}");
+                var message = string.IsNullOrWhiteSpace(details)
+                    ? "scrcpy exited before its video window appeared. Verify the headset is authorized in ADB."
+                    : $"scrcpy exited before its video window appeared: {details}";
+                AppLog.Error("VideoHost", $"Could not find the scrcpy window because the process exited. PID={session.ProcessId}; details='{details}'.");
+                throw new InvalidOperationException(message);
             }
 
             window = FindProcessWindow(session.ProcessId, session.WindowTitle);
@@ -97,7 +110,11 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
         }
 
         if (window == IntPtr.Zero)
+        {
+            AppLog.Error("VideoHost",
+                $"Timed out waiting for scrcpy window. PID={session.ProcessId}; elapsedMs={stopwatch.ElapsedMilliseconds}.");
             throw new TimeoutException("scrcpy started, but its video window did not appear within 15 seconds.");
+        }
 
         var style = unchecked((uint)GetWindowLongPtrW(window, GwlStyle).ToInt64());
         style &= ~(WsPopup | WsCaption | WsThickFrame | WsSystemMenu | WsMinimizeBox | WsMaximizeBox);
@@ -106,13 +123,23 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
 
         _ = SetParent(window, _hostHandle);
         if (GetParent(window) != _hostHandle)
-            throw new Win32Exception(Marshal.GetLastWin32Error(), "Windows could not embed the scrcpy window inside SPECTRA.");
+        {
+            var exception = new Win32Exception(Marshal.GetLastWin32Error(),
+                "Windows could not embed the scrcpy window inside SPECTRA.");
+            AppLog.Exception("VideoHost",
+                $"SetParent failed. scrcpyHWND=0x{window.ToInt64():X}; hostHWND=0x{_hostHandle.ToInt64():X}.",
+                exception);
+            throw exception;
+        }
 
         _scrcpyHandle = window;
 
         ShowWindow(_hostHandle, SwShow);
         ShowWindow(_scrcpyHandle, SwShow);
         ResizeHostedWindows(Bounds.Size);
+        AppLog.Info("Performance",
+            $"scrcpy window attached in {stopwatch.ElapsedMilliseconds} ms. PID={session.ProcessId}; " +
+            $"scrcpyHWND=0x{_scrcpyHandle.ToInt64():X}; hostHWND=0x{_hostHandle.ToInt64():X}.");
     }
 
     public void Detach()
@@ -123,6 +150,8 @@ public sealed class ScrcpyVideoHost : NativeControlHost, IVideoSurface
         if (_scrcpyHandle != IntPtr.Zero && IsWindow(_scrcpyHandle))
             ShowWindow(_scrcpyHandle, SwHide);
 
+        if (_scrcpyHandle != IntPtr.Zero)
+            AppLog.Debug("VideoHost", $"Detached scrcpy window HWND=0x{_scrcpyHandle.ToInt64():X}.");
         _scrcpyHandle = IntPtr.Zero;
 
         if (_hostHandle != IntPtr.Zero && IsWindow(_hostHandle))

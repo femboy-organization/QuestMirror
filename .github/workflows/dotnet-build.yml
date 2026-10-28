@@ -84,8 +84,25 @@ jobs:
           SPECTRA_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet publish src/SPECTRA.App/SPECTRA.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:Version=$env:SPECTRA_VERSION -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=true --output artifacts/publish
-          if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed.' }
+          $publish = 'artifacts\publish'
+          $appOutput = Join-Path $publish 'bin'
+          New-Item -ItemType Directory -Force -Path $publish, $appOutput | Out-Null
+          dotnet publish src/SPECTRA.App/SPECTRA.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:Version=$env:SPECTRA_VERSION -p:PublishSingleFile=false -p:IncludeNativeLibrariesForSelfExtract=true --output $appOutput
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the SPECTRA application failed.' }
+          if (-not (Test-Path (Join-Path $appOutput 'SPECTRA.exe'))) { throw 'The application executable was not produced under bin.' }
+
+      - name: Publish lightweight top-level launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcherOutput = 'artifacts\launcher'
+          New-Item -ItemType Directory -Force -Path $launcherOutput | Out-Null
+          dotnet publish src/SPECTRA.Launcher/SPECTRA.Launcher.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishAot=true -p:StripSymbols=true --output $launcherOutput
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the top-level launcher failed.' }
+          $launcher = Join-Path $launcherOutput 'SPECTRA.Launcher.exe'
+          if (-not (Test-Path $launcher)) { throw 'The native SPECTRA launcher executable was not produced.' }
+          Copy-Item -LiteralPath $launcher -Destination 'artifacts\publish\SPECTRA.exe' -Force
+          Copy-Item -LiteralPath 'artifacts\publish\bin\THIRD-PARTY-NOTICES.md' -Destination 'artifacts\publish\THIRD-PARTY-NOTICES.md' -Force
 
       - name: Create portable ZIP and Windows installer
         shell: pwsh
@@ -99,9 +116,16 @@ jobs:
           $installer = "artifacts\SPECTRA-$version-Setup-win-x64.exe"
           New-Item -ItemType Directory -Force -Path 'artifacts' | Out-Null
 
-          foreach ($required in @('SPECTRA.exe', 'tools\scrcpy.exe', 'tools\adb.exe', 'tools\scrcpy-server', 'THIRD-PARTY-NOTICES.md')) {
+          foreach ($required in @('SPECTRA.exe', 'bin\SPECTRA.exe', 'bin\tools\scrcpy.exe', 'bin\tools\adb.exe', 'bin\tools\scrcpy-server', 'bin\THIRD-PARTY-NOTICES.md', 'THIRD-PARTY-NOTICES.md')) {
             if (-not (Test-Path (Join-Path $publish $required))) { throw "Published package is missing: $required" }
           }
+
+          $rootDlls = @(Get-ChildItem -LiteralPath $publish -Filter '*.dll' -File)
+          if ($rootDlls.Count -gt 0) {
+            throw "DLL files must be stored below the bin directory. Unexpected root DLLs: $($rootDlls.Name -join ', ')"
+          }
+          $applicationDlls = @(Get-ChildItem -LiteralPath (Join-Path $publish 'bin') -Filter '*.dll' -File -Recurse)
+          if ($applicationDlls.Count -eq 0) { throw 'The application bin directory does not contain any DLL files.' }
 
           Compress-Archive -Path 'artifacts\publish\*' -DestinationPath $portable -CompressionLevel Optimal
 
@@ -168,6 +192,12 @@ jobs:
             - Automatic and manual resolution / FPS / bitrate presets.
             - Fullscreen mode with Escape to exit.
             - Self-contained Windows installer and portable ZIP.
+            - Application runtime files and DLLs are stored under `bin`; the root `SPECTRA.exe` launches the app from there.
+            - Diagnostic logs capture application events, unhandled exceptions and performance timings.
+
+            ### Diagnostics
+            - Log files are written to `%LOCALAPPDATA%\SPECTRA\Logs\`.
+            - Wireless pairing codes are not written to the logs.
 
             ### Notes
             - Audio is not included.
