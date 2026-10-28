@@ -111,7 +111,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $launcher = (Resolve-Path 'artifacts\publish\SPECTRA.exe').Path
-          $logDirectory = Join-Path $env:LOCALAPPDATA 'SPECTRA\Logs'
+          $logDirectory = Join-Path (Split-Path $launcher -Parent) 'logs'
           New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
           $date = Get-Date -Format 'yyyy-MM-dd'
           $launcherLog = Join-Path $logDirectory "launcher-$date.log"
