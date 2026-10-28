@@ -4,8 +4,8 @@ using System.Text;
 namespace SPECTRA.Core.Diagnostics;
 
 /// <summary>
-/// Lightweight, always-on diagnostics logging for the application and its helper processes.
-/// Logs are written outside the installation directory so portable installs remain writable.
+/// Lightweight, always-on diagnostics logging. Portable installs log beside the launcher;
+/// protected installation directories fall back to LocalAppData and then Temp.
 /// </summary>
 public static class AppLog
 {
@@ -34,36 +34,34 @@ public static class AppLog
                 return;
 
             _initialized = true;
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var primaryDirectory = string.IsNullOrWhiteSpace(localAppData)
-                ? Path.Combine(Path.GetTempPath(), "SPECTRA", "Logs")
-                : Path.Combine(localAppData, "SPECTRA", "Logs");
-
-            try
-            {
-                _logDirectory = primaryDirectory;
-                Directory.CreateDirectory(_logDirectory);
-                OpenWriterUnsafe(DateTime.Now);
-            }
-            catch (Exception primaryException)
+            var candidates = GetLogDirectories().Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            Exception? lastException = null;
+            foreach (var directory in candidates)
             {
                 try
                 {
-                    _logDirectory = Path.Combine(Path.GetTempPath(), "SPECTRA", "Logs");
-                    Directory.CreateDirectory(_logDirectory);
+                    _logDirectory = directory;
+                    Directory.CreateDirectory(directory);
                     OpenWriterUnsafe(DateTime.Now);
-                    WriteUnsafe("WARN", "Diagnostics",
-                        $"Could not open the primary log directory; using the temporary directory. {primaryException.Message}");
+                    break;
                 }
-                catch
+                catch (Exception exception)
                 {
+                    lastException = exception;
                     _writer = null;
                     _logFilePath = null;
                 }
             }
 
+            if (_writer is null && lastException is not null)
+            {
+                try { Console.Error.WriteLine($"SPECTRA diagnostics log could not be opened: {lastException}"); }
+                catch { }
+            }
+
             CleanupOldLogsUnsafe();
-            WriteUnsafe("INFO", "Diagnostics", $"Logging initialized. File: {(_logFilePath ?? "(unavailable)")}");
+            WriteUnsafe("INFO", "Diagnostics",
+                $"Logging initialized. File: {(_logFilePath ?? "(unavailable)")}; candidates='{string.Join(";", candidates)}'.");
         }
     }
 
@@ -82,33 +80,40 @@ public static class AppLog
     {
         lock (Sync)
         {
-            try
-            {
-                _writer?.Flush();
-            }
-            catch
-            {
-                // Logging must never be allowed to crash the application.
-            }
+            try { _writer?.Flush(); }
+            catch { }
         }
+    }
+
+    private static IEnumerable<string> GetLogDirectories()
+    {
+        // The application is published under <install>\\bin; portable users expect logs
+        // in the extracted application folder. Installed copies may be protected by Windows.
+        var appDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var installDirectory = string.Equals(Path.GetFileName(appDirectory), "bin", StringComparison.OrdinalIgnoreCase)
+            ? Directory.GetParent(appDirectory)?.FullName
+            : appDirectory;
+        if (!string.IsNullOrWhiteSpace(installDirectory))
+            yield return Path.Combine(installDirectory, "logs");
+
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (!string.IsNullOrWhiteSpace(localAppData))
+            yield return Path.Combine(localAppData, "SPECTRA", "Logs");
+
+        yield return Path.Combine(Path.GetTempPath(), "SPECTRA", "Logs");
     }
 
     private static void Write(string level, string category, string message)
     {
         EnsureInitialized();
-
         lock (Sync)
         {
             try
             {
                 var now = DateTime.Now;
-                var expectedPath = _logDirectory is null
-                    ? null
-                    : Path.Combine(_logDirectory, $"spectra-{now:yyyy-MM-dd}.log");
-
+                var expectedPath = _logDirectory is null ? null : Path.Combine(_logDirectory, $"spectra-{now:yyyy-MM-dd}.log");
                 if (_writer is null || !string.Equals(expectedPath, _logFilePath, StringComparison.OrdinalIgnoreCase))
                     OpenWriterUnsafe(now);
-
                 WriteUnsafe(level, category, message);
             }
             catch (Exception loggingException)
@@ -118,10 +123,7 @@ public static class AppLog
                     Console.Error.WriteLine($"{DateTimeOffset.Now:O} [{level}] [{category}] {message}");
                     Console.Error.WriteLine($"Could not write the diagnostics log: {loggingException}");
                 }
-                catch
-                {
-                    // No reliable output stream is available; preserve the application operation.
-                }
+                catch { }
             }
         }
     }
@@ -139,11 +141,7 @@ public static class AppLog
 
         _writer?.Dispose();
         _logFilePath = Path.Combine(_logDirectory, $"spectra-{now:yyyy-MM-dd}.log");
-        var stream = new FileStream(
-            _logFilePath,
-            FileMode.Append,
-            FileAccess.Write,
-            FileShare.ReadWrite | FileShare.Delete);
+        var stream = new FileStream(_logFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
         _writer = new StreamWriter(stream, LogEncoding) { AutoFlush = true };
     }
 
@@ -160,30 +158,17 @@ public static class AppLog
     {
         if (string.IsNullOrWhiteSpace(_logDirectory) || !Directory.Exists(_logDirectory))
             return;
-
         try
         {
             var cutoff = DateTime.UtcNow.AddDays(-14);
             foreach (var pattern in new[] { "spectra-*.log", "launcher-*.log" })
+            foreach (var path in Directory.EnumerateFiles(_logDirectory, pattern))
             {
-                foreach (var path in Directory.EnumerateFiles(_logDirectory, pattern))
-                {
-                    try
-                    {
-                        if (File.GetLastWriteTimeUtc(path) < cutoff)
-                            File.Delete(path);
-                    }
-                    catch
-                    {
-                        // A locked or protected old log should not interrupt application startup.
-                    }
-                }
+                try { if (File.GetLastWriteTimeUtc(path) < cutoff) File.Delete(path); }
+                catch { }
             }
         }
-        catch
-        {
-            // Cleanup is best-effort.
-        }
+        catch { }
     }
 }
 
