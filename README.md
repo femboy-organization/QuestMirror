@@ -39,7 +39,7 @@ SPECTRA writes a daily diagnostic log to `%LOCALAPPDATA%\SPECTRA\Logs\spectra-YY
 
 ## Streaming
 
-- **Automatic quality** is enabled by default: 1920 px maximum size, 60 FPS, and 8 Mbps video bitrate.
+- **2D display mirroring:** scrcpy explicitly captures the Android display as a normal flat 2D video stream; SPECTRA does not add stereoscopic or volumetric rendering.\n- **Automatic quality** is enabled by default: 1920 px maximum size, 60 FPS, and 8 Mbps video bitrate.
 - **Manual quality** offers presets for maximum size, FPS, and video bitrate. Stop streaming before editing quality; changes apply to the next stream.
 - **Disconnect handling:** SPECTRA rechecks the ADB device state and stops the stream if the device disconnects.
 - **Not included:** audio, recording, screenshots, and headset control.
