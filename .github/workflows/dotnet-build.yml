@@ -91,18 +91,75 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Publishing the SPECTRA application failed.' }
           if (-not (Test-Path (Join-Path $appOutput 'SPECTRA.exe'))) { throw 'The application executable was not produced under bin.' }
 
-      - name: Publish lightweight top-level launcher
+      - name: Publish diagnostic single-file top-level launcher
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $launcherOutput = 'artifacts\launcher'
           New-Item -ItemType Directory -Force -Path $launcherOutput | Out-Null
-          dotnet publish src/SPECTRA.Launcher/SPECTRA.Launcher.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishAot=true -p:StripSymbols=true --output $launcherOutput
+          dotnet publish src/SPECTRA.Launcher/SPECTRA.Launcher.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishAot=false -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output $launcherOutput
           if ($LASTEXITCODE -ne 0) { throw 'Publishing the top-level launcher failed.' }
           $launcher = Join-Path $launcherOutput 'SPECTRA.Launcher.exe'
-          if (-not (Test-Path $launcher)) { throw 'The native SPECTRA launcher executable was not produced.' }
+          if (-not (Test-Path $launcher)) { throw 'The single-file SPECTRA launcher executable was not produced.' }
+          $launcherDlls = @(Get-ChildItem -LiteralPath $launcherOutput -Filter '*.dll' -File)
+          if ($launcherDlls.Count -gt 0) { throw "The launcher publish must be single-file. Unexpected DLLs: $($launcherDlls.Name -join ', ')" }
           Copy-Item -LiteralPath $launcher -Destination 'artifacts\publish\SPECTRA.exe' -Force
           Copy-Item -LiteralPath 'artifacts\publish\bin\THIRD-PARTY-NOTICES.md' -Destination 'artifacts\publish\THIRD-PARTY-NOTICES.md' -Force
+
+      - name: Smoke-test packaged launcher and application startup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $launcher = (Resolve-Path 'artifacts\publish\SPECTRA.exe').Path
+          $logDirectory = Join-Path $env:LOCALAPPDATA 'SPECTRA\Logs'
+          New-Item -ItemType Directory -Force -Path $logDirectory | Out-Null
+          $date = Get-Date -Format 'yyyy-MM-dd'
+          $launcherLog = Join-Path $logDirectory "launcher-$date.log"
+          $appLog = Join-Path $logDirectory "spectra-$date.log"
+
+          Remove-Item -LiteralPath $launcherLog, $appLog -Force -ErrorAction SilentlyContinue
+          Write-Host "Testing launcher executable: $launcher"
+          $selfTest = Start-Process -FilePath $launcher -ArgumentList '--diagnostic-self-test' -Wait -PassThru
+          if ($selfTest.ExitCode -ne 0) { throw "Launcher self-test returned exit code $($selfTest.ExitCode)." }
+          if (-not (Test-Path -LiteralPath $launcherLog)) { throw "Launcher self-test did not create its log: $launcherLog" }
+          if (-not (Get-Content -LiteralPath $launcherLog -Raw).Contains('Diagnostic self-test passed')) {
+            throw 'Launcher self-test log did not contain the expected success marker.'
+          }
+          Write-Host 'Launcher self-test passed and a log file was created.'
+
+          $application = $null
+          try {
+            Write-Host 'Starting the packaged SPECTRA executable for a 15-second startup smoke test.'
+            $application = Start-Process -FilePath $launcher -PassThru
+            if ($application.WaitForExit(15000)) {
+              $launcherDetails = if (Test-Path $launcherLog) { Get-Content -LiteralPath $launcherLog -Raw } else { '(no launcher log)' }
+              $appDetails = if (Test-Path $appLog) { Get-Content -LiteralPath $appLog -Raw } else { '(no application log)' }
+              Write-Host '--- Launcher log ---'
+              Write-Host $launcherDetails
+              Write-Host '--- Application log ---'
+              Write-Host $appDetails
+              throw "SPECTRA exited during startup with code $($application.ExitCode)."
+            }
+
+            if (-not (Test-Path -LiteralPath $appLog)) {
+              Write-Host (Get-Content -LiteralPath $launcherLog -Raw)
+              throw "SPECTRA process did not create its application log: $appLog"
+            }
+
+            $appDetails = Get-Content -LiteralPath $appLog -Raw
+            if (-not $appDetails.Contains('Starting SPECTRA')) {
+              Write-Host $appDetails
+              throw 'SPECTRA log exists but the application did not reach its managed entry point.'
+            }
+
+            Write-Host 'Application startup smoke test passed; the root launcher started bin\SPECTRA.exe and the application wrote its own diagnostics log.'
+          }
+          finally {
+            if ($null -ne $application -and -not $application.HasExited) {
+              & taskkill.exe /PID $application.Id /T /F | Out-Host
+              if ($LASTEXITCODE -ne 0) { Write-Warning "taskkill returned $LASTEXITCODE while cleaning up the smoke-test processes." }
+            }
+          }
 
       - name: Create portable ZIP and Windows installer
         shell: pwsh
@@ -193,10 +250,11 @@ jobs:
             - Fullscreen mode with Escape to exit.
             - Self-contained Windows installer and portable ZIP.
             - Application runtime files and DLLs are stored under `bin`; the root `SPECTRA.exe` launches the app from there.
+            - The release pipeline smoke-tests the exact packaged launcher and requires a real application startup log before publishing.
             - Diagnostic logs capture application events, unhandled exceptions and performance timings.
 
             ### Diagnostics
-            - Log files are written to `%LOCALAPPDATA%\SPECTRA\Logs\`.
+            - Log files are written to `%LOCALAPPDATA%\SPECTRA\Logs\`; launcher logging also falls back to `%TEMP%\SPECTRA\Logs\` and a local `logs` folder.
             - Wireless pairing codes are not written to the logs.
 
             ### Notes

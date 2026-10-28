@@ -35,7 +35,7 @@ The wireless pairing endpoint and ADB connection endpoint use different ports. S
 
 ## Diagnostics and logs
 
-SPECTRA writes a daily diagnostic log to `%LOCALAPPDATA%\SPECTRA\Logs\spectra-YYYY-MM-DD.log`. Launcher startup failures are recorded in `launcher-YYYY-MM-DD.log` in the same directory. Logs include application lifecycle events, ADB/scrcpy process failures, window embedding errors, unhandled exceptions and timing measurements used to diagnose startup or streaming performance. Wireless pairing codes are not logged. Attach the latest log file when reporting a bug.
+SPECTRA writes a daily diagnostic log to `%LOCALAPPDATA%\SPECTRA\Logs\spectra-YYYY-MM-DD.log`. Launcher startup failures are recorded in `launcher-YYYY-MM-DD.log` in the same directory. If LocalAppData is unavailable, launcher logging falls back to `%TEMP%\SPECTRA\Logs`, then a `logs` folder next to the launcher. Logs include application lifecycle events, ADB/scrcpy process failures, window embedding errors, unhandled exceptions and timing measurements used to diagnose startup or streaming performance. Wireless pairing codes are not logged. Attach the latest log file when reporting a bug.
 
 ## Streaming
 
@@ -54,7 +54,7 @@ dotnet build SPECTRA.sln --configuration Release --no-restore
 dotnet test SPECTRA.sln --configuration Release --no-build
 ```
 
-The GitHub Actions workflow builds and tests the application and launcher on pull requests. For pushes to `main`, it downloads the official scrcpy v5.0.1 Windows bundle, verifies its SHA-256, publishes the main self-contained application into `bin`, compiles a small native launcher as the root `SPECTRA.exe`, validates that there are no root-level DLL files, creates the installer and portable ZIP, and publishes a GitHub pre-release. The release workflow is the supported path for producing complete distribution packages; a local `dotnet publish` without the bundled scrcpy tools and launcher packaging step is not a complete package.
+The GitHub Actions workflow builds and tests the application and launcher on pull requests. For pushes to `main`, it downloads the official scrcpy v5.0.1 Windows bundle, verifies its SHA-256, publishes the main self-contained application into `bin`, publishes the root `SPECTRA.exe` launcher as a self-contained single-file .NET app, validates that there are no root-level DLL files, starts the exact packaged launcher in a smoke test and confirms the application writes its startup log, then creates the installer and portable ZIP and publishes a GitHub pre-release. The release workflow is the supported path for producing complete distribution packages; a local `dotnet publish` without the bundled scrcpy tools and launcher packaging step is not a complete package.
 
 ## Project status and limitations
 
