@@ -5,7 +5,6 @@ on:
       - tmp-simplemagic-mega-build
     paths:
       - 'tmp-simplemagic-mega.trigger'
-      - 'tmp-simplemagic-mega.tar.xz.b64'
       - '.github/workflows/tmp-simplemagic-mega.yml'
 jobs:
   build:
@@ -14,8 +13,8 @@ jobs:
       image: gradle:8.8-jdk17
     steps:
       - uses: actions/checkout@v4
-      - name: Restore source archive
-        run: base64 -d tmp-simplemagic-mega.tar.xz.b64 | tar -xJf -
+      - name: Reassemble and restore source archive
+        run: cat tmp-simplemagic-mega.part* | base64 -d | tar -xJf -
       - name: Compile Forge mod
         working-directory: simplemagic-mega
         run: gradle --no-daemon --stacktrace clean build
