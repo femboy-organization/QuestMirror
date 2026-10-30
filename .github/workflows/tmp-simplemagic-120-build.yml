@@ -1,0 +1,47 @@
+name: Build Simple Magic 1.2.0
+
+on:
+  push:
+    branches:
+      - tmp-simplemagic-110-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tmp-simplemagic-110-build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.8'
+      - name: Extract source archive
+        run: |
+          base64 --decode tmp-simplemagic-1.2.0.tar.xz.b64 > /tmp/simplemagic-1.2.0.tar.xz
+          tar -xJf /tmp/simplemagic-1.2.0.tar.xz -C .
+          test -f SimpleMagic-1.0.2/build.gradle
+      - name: Build reobfuscated Forge mod
+        working-directory: SimpleMagic-1.0.2
+        run: gradle --no-daemon clean build
+      - name: Verify mod archive
+        run: |
+          JAR="SimpleMagic-1.0.2/build/libs/simplemagic-1.2.0.jar"
+          test -s "$JAR"
+          jar tf "$JAR" | grep -q 'META-INF/mods.toml'
+          jar tf "$JAR" | grep -q 'com/openai/simplemagic/item/ManaStarItem.class'
+          jar tf "$JAR" | grep -q 'com/openai/simplemagic/item/ManaDeveloperItem.class'
+          unzip -p "$JAR" META-INF/mods.toml | grep -q 'version="1.2.0"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: simplemagic-1.2.0-forge-1.20.1
+          path: SimpleMagic-1.0.2/build/libs/simplemagic-1.2.0.jar
+          if-no-files-found: error
+          retention-days: 7
