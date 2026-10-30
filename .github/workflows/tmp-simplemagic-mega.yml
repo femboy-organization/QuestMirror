@@ -17,6 +17,13 @@ jobs:
         run: apt-get update && apt-get install -y xz-utils
       - name: Reassemble and restore source archive
         run: cat tmp-simplemagic-mega.part* | base64 -d | tar -xJf -
+      - name: Upload source snapshot for revision
+        uses: actions/upload-artifact@v4
+        with:
+          name: simplemagic-mega-source
+          path: simplemagic-mega/**
+          if-no-files-found: error
+          retention-days: 7
       - name: Apply Forge 1.20.1 compile fixes
         working-directory: simplemagic-mega
         run: |
