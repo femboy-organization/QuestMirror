@@ -17,6 +17,11 @@ jobs:
         run: apt-get update && apt-get install -y xz-utils
       - name: Reassemble and restore source archive
         run: cat tmp-simplemagic-mega.part* | base64 -d | tar -xJf -
+      - name: Apply Forge 1.20.1 compile fixes
+        working-directory: simplemagic-mega
+        run: |
+          sed -i 's/e -> e.isAlive() \&\& e != player/e -> e.isAlive()/' src/main/java/com/openai/simplemagic/item/RelicItem.java
+          sed -i 's/inventory.getDisplayName()/Component.translatable("container.inventory")/' src/main/java/com/openai/simplemagic/menu/WingSlotScreen.java
       - name: Compile Forge mod
         working-directory: simplemagic-mega
         run: gradle --no-daemon --stacktrace clean build
