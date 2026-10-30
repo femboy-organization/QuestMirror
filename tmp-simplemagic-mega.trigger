@@ -1,1 +1,1 @@
-build 2.0.0 retry xz
+build 2.0.0 retry 2
