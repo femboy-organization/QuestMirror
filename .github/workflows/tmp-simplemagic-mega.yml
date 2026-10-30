@@ -13,6 +13,8 @@ jobs:
       image: gradle:8.8-jdk17
     steps:
       - uses: actions/checkout@v4
+      - name: Install archive utilities
+        run: apt-get update && apt-get install -y xz-utils
       - name: Reassemble and restore source archive
         run: cat tmp-simplemagic-mega.part* | base64 -d | tar -xJf -
       - name: Compile Forge mod
