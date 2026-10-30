@@ -1,0 +1,28 @@
+name: Build Simple Magic Mega
+on:
+  push:
+    branches:
+      - tmp-simplemagic-mega-build
+    paths:
+      - 'tmp-simplemagic-mega.trigger'
+      - 'tmp-simplemagic-mega.tar.xz.b64'
+      - '.github/workflows/tmp-simplemagic-mega.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: gradle:8.8-jdk17
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore source archive
+        run: base64 -d tmp-simplemagic-mega.tar.xz.b64 | tar -xJf -
+      - name: Compile Forge mod
+        working-directory: simplemagic-mega
+        run: gradle --no-daemon --stacktrace clean build
+      - name: Upload mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: simplemagic-mega-2.0.0
+          path: simplemagic-mega/build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 7
