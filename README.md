@@ -81,3 +81,8 @@ SPECTRA mirrors one eye at a time from a side-by-side headset display. Choose th
 left or right eye in **Video framing** and adjust rotation from -180° to +180°
 (clockwise). The crop is calculated from the active Android display dimensions
 reported by ADB. Framing changes apply when the next stream starts.
+
+The one-eye preview is cropped to a centered square safely inside the circular headset
+viewport, then displayed in a square, centered desktop preview surface. This removes
+the visible round lens boundary and the previous rectangular letterboxing. Rotation
+remains adjustable from -180° to +180°.

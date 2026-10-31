@@ -82,10 +82,14 @@
           <Button Grid.Column="1" Content="Fullscreen" Classes="subtle" Click="OnFullscreenClick"/>
         </Grid>
 
-        <Border Grid.Row="1" Background="#151515" BorderThickness="0"
+        <Border Grid.Row="1" Background="#F7F4EE" BorderThickness="0"
                 CornerRadius="0" ClipToBounds="True" MinHeight="400">
-          <Grid>
-            <local:ScrcpyVideoHost x:Name="VideoHost"/>
+          <Grid x:Name="PreviewArea" SizeChanged="OnPreviewAreaSizeChanged">
+            <Border x:Name="SquareVideoFrame" Width="480" Height="480"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#151515" BorderThickness="0" CornerRadius="0" ClipToBounds="True">
+              <local:ScrcpyVideoHost x:Name="VideoHost"/>
+            </Border>
             <Border IsVisible="{Binding IsVideoPlaceholderVisible}" Background="#F0ECE5">
               <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="13" MaxWidth="400">
                 <Border Width="70" Height="70" CornerRadius="35" Background="#E5D7CA">
