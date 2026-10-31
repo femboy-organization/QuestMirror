@@ -32,14 +32,15 @@ public static class ScrcpyVideoCrop
         return false;
     }
 
-    public static string CreateHalfDisplayCrop(ScrcpyDisplaySize displaySize, string eye)
+    public static string CreateSixteenByNineEyeCrop(ScrcpyDisplaySize displaySize, string eye)
     {
         if (displaySize.Width < 4 || displaySize.Height < 2)
             throw new ArgumentOutOfRangeException(nameof(displaySize), "The display dimensions are too small to crop.");
 
-        var cropWidth = (displaySize.Width / 2) & ~1;
-        if (cropWidth < 2)
-            throw new ArgumentOutOfRangeException(nameof(displaySize), "The display width is too small to split into two eyes.");
+        var eyeWidth = (displaySize.Width / 2) & ~1;
+        var eyeHeight = displaySize.Height & ~1;
+        if (eyeWidth < 2 || eyeHeight < 2)
+            throw new ArgumentOutOfRangeException(nameof(displaySize), "The eye viewport is too small to crop.");
 
         var normalizedEye = string.Equals(eye, "Right", StringComparison.OrdinalIgnoreCase)
             ? "Right"
@@ -47,9 +48,21 @@ public static class ScrcpyVideoCrop
                 ? "Left"
                 : throw new ArgumentException("Eye must be either Left or Right.", nameof(eye));
 
-        var x = normalizedEye == "Right" ? cropWidth : 0;
-        var height = displaySize.Height & ~1;
-        return $"{cropWidth}:{height}:{x}:0";
+        // Fit a 16:9 rectangle inside the circular lens area. The safety factor
+        // avoids exposing the circular edge, including after display rotation.
+        const double visibleCircleDiameterRatio = 0.82d;
+        var visibleDiameter = Math.Min(eyeWidth, eyeHeight) * visibleCircleDiameterRatio;
+        var cropHeight = ((int)Math.Floor(visibleDiameter * 9d / Math.Sqrt(337d))) & ~1;
+        var cropWidth = ((int)Math.Floor(cropHeight * 16d / 9d)) & ~1;
+        if (cropWidth < 2 || cropHeight < 2)
+            throw new ArgumentOutOfRangeException(nameof(displaySize), "The eye viewport is too small for a 16:9 crop.");
+
+        var localX = ((eyeWidth - cropWidth) / 2) & ~1;
+        var y = ((eyeHeight - cropHeight) / 2) & ~1;
+        var eyeOffset = normalizedEye == "Right" ? eyeWidth : 0;
+        var x = eyeOffset + localX;
+
+        return $"{cropWidth}:{cropHeight}:{x}:{y}";
     }
 }
 

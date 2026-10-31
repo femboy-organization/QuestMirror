@@ -54,9 +54,9 @@ public sealed class ScrcpyStreamingService
                 "Could not determine the Quest display dimensions. Check ADB and inspect the SPECTRA log.");
         }
 
-        var crop = ScrcpyVideoCrop.CreateHalfDisplayCrop(displaySize, options.VideoEye);
+        var crop = ScrcpyVideoCrop.CreateSixteenByNineEyeCrop(displaySize, options.VideoEye);
         AppLog.Info("Streaming",
-            $"Using {options.VideoEye.ToLowerInvariant()} eye crop={crop}; display={displaySize.Width}x{displaySize.Height}; " +
+            $"Using {options.VideoEye.ToLowerInvariant()} 16:9 eye crop={crop}; display={displaySize.Width}x{displaySize.Height}; " +
             $"rotationDegrees={options.RotationDegrees}.");
 
         var title = $"SPECTRA-{Guid.NewGuid():N}";

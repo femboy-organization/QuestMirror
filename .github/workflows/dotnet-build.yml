@@ -252,9 +252,9 @@ jobs:
             - ADB Wireless debugging pairing and connection.
             - scrcpy video window hosted inside the main SPECTRA window.
             - Automatic and manual resolution / FPS / bitrate presets.
-            - Selectable left/right eye crop for side-by-side headset output.
+            - Selectable left/right eye with a flat 16:9 crop safely inside the circular lens field.
             - Adjustable preview rotation from -180° to +180° in 1° increments.
-            - Borderless single-eye video preview.
+            - Borderless 16:9 preview with no circular lens edge or square framing.
             - Fullscreen mode with Escape to exit.
             - Self-contained Windows installer and portable ZIP.
             - Application runtime files and DLLs are stored under `bin`; the root `SPECTRA.exe` launches the app from there.

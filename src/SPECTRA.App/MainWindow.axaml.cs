@@ -52,8 +52,11 @@ public partial class MainWindow : Window
     private void OnPreviewAreaSizeChanged(object? sender, SizeChangedEventArgs e)
     {
         var side = Math.Max(1d, Math.Floor(Math.Min(e.NewSize.Width, e.NewSize.Height)));
-        SquareVideoFrame.Width = side;
-        SquareVideoFrame.Height = side;
+        const double aspectRatio = 16d / 9d;
+        var frameWidth = Math.Min(e.NewSize.Width, e.NewSize.Height * aspectRatio);
+        var frameHeight = frameWidth / aspectRatio;
+        VideoFrame.Width = Math.Max(1d, Math.Floor(frameWidth));
+        VideoFrame.Height = Math.Max(1d, Math.Floor(frameHeight));
     }
 
     private void OnFullscreenClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
