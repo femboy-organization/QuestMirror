@@ -84,7 +84,7 @@
 
         <Border Grid.Row="1" Background="#F7F4EE" BorderThickness="0"
                 CornerRadius="0" ClipToBounds="True" MinHeight="400">
-          <Grid x:Name="PreviewArea" SizeChanged="OnPreviewAreaSizeChanged">
+          <Grid x:Name="PreviewArea">
             <Border x:Name="SquareVideoFrame" Width="480" Height="480"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="#151515" BorderThickness="0" CornerRadius="0" ClipToBounds="True">

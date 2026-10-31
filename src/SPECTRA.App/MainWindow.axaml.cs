@@ -13,6 +13,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        PreviewArea.SizeChanged += OnPreviewAreaSizeChanged;
         _viewModel = new MainViewModel(VideoHost);
         DataContext = _viewModel;
 
@@ -45,6 +46,14 @@ public partial class MainWindow : Window
                 AppLog.Exception("Shutdown", "An error occurred while disposing application services.", exception);
             }
         };
+    }
+
+
+    private void OnPreviewAreaSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        var side = Math.Max(1d, Math.Floor(Math.Min(e.NewSize.Width, e.NewSize.Height)));
+        SquareVideoFrame.Width = side;
+        SquareVideoFrame.Height = side;
     }
 
     private void OnFullscreenClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
