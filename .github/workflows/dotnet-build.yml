@@ -7,6 +7,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Serialize main-branch releases so two fast pushes cannot select and publish the same pre-release number.
+concurrency:
+  group: spectra-release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
