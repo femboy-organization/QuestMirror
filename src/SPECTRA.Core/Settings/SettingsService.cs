@@ -62,6 +62,8 @@ public sealed class SettingsService
                 Resolution = settings.Resolution,
                 FramesPerSecond = settings.FramesPerSecond,
                 BitrateMbps = settings.BitrateMbps,
+                VideoEye = settings.VideoEye,
+                RotationDegrees = settings.RotationDegrees,
                 PairingEndpoint = settings.PairingEndpoint,
                 DeviceEndpoint = settings.DeviceEndpoint
             }.Normalize();

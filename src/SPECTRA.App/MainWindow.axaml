@@ -82,8 +82,8 @@
           <Button Grid.Column="1" Content="Fullscreen" Classes="subtle" Click="OnFullscreenClick"/>
         </Grid>
 
-        <Border Grid.Row="1" Background="#151515" BorderBrush="#E4DCD1" BorderThickness="1"
-                CornerRadius="16" ClipToBounds="True" MinHeight="400">
+        <Border Grid.Row="1" Background="#151515" BorderThickness="0"
+                CornerRadius="0" ClipToBounds="True" MinHeight="400">
           <Grid>
             <local:ScrcpyVideoHost x:Name="VideoHost"/>
             <Border IsVisible="{Binding IsVideoPlaceholderVisible}" Background="#F0ECE5">
@@ -195,6 +195,33 @@
                 <ComboBox ItemsSource="{Binding BitrateOptions}" SelectedItem="{Binding SelectedBitrateMbps}"
                           IsEnabled="{Binding CanEditQualityAndManualQuality}"/>
               </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Background="#FFFFFF" BorderBrush="#E9E2D9" BorderThickness="1" CornerRadius="14" Padding="18">
+            <StackPanel Spacing="11">
+              <StackPanel Spacing="3">
+                <TextBlock Text="Video framing" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock Text="Show one lens only. Changes apply to the next stream."
+                           FontSize="11" Foreground="#77716A" TextWrapping="Wrap"/>
+              </StackPanel>
+              <TextBlock Text="Eye" FontSize="11" Foreground="#77716A"/>
+              <ComboBox ItemsSource="{Binding EyeOptions}" SelectedItem="{Binding SelectedEye}"
+                        IsEnabled="{Binding CanEditVideo}" MinHeight="38"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Rotation" FontSize="11" Foreground="#77716A"/>
+                <TextBlock Grid.Column="1" Text="{Binding RotationDescription}"
+                           FontSize="12" FontWeight="SemiBold"/>
+              </Grid>
+              <Slider Minimum="-180" Maximum="180" TickFrequency="1"
+                      Value="{Binding RotationDegrees}" IsEnabled="{Binding CanEditVideo}"/>
+              <Grid ColumnDefinitions="*,*,*">
+                <TextBlock Text="-180°" FontSize="10" Foreground="#77716A"/>
+                <TextBlock Grid.Column="1" Text="0°" FontSize="10" Foreground="#77716A"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="+180°" FontSize="10" Foreground="#77716A"
+                           HorizontalAlignment="Right"/>
+              </Grid>
             </StackPanel>
           </Border>
 

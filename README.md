@@ -74,3 +74,10 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report su
 ## License
 
 SPECTRA source code is released under the [MIT License](LICENSE). Bundled third-party components remain under their respective licenses; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+## Video framing
+
+SPECTRA mirrors one eye at a time from a side-by-side headset display. Choose the
+left or right eye in **Video framing** and adjust rotation from -180° to +180°
+(clockwise). The crop is calculated from the active Android display dimensions
+reported by ADB. Framing changes apply when the next stream starts.

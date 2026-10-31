@@ -36,6 +36,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     private int _selectedResolution;
     private int _selectedFps;
     private int _selectedBitrateMbps;
+    private string _selectedEye = "Left";
+    private double _rotationDegrees;
     private bool _isBusy;
     private bool _isStreaming;
 
@@ -49,6 +51,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         _selectedResolution = _settings.Resolution;
         _selectedFps = _settings.FramesPerSecond;
         _selectedBitrateMbps = _settings.BitrateMbps;
+        _selectedEye = _settings.VideoEye;
+        _rotationDegrees = _settings.RotationDegrees;
         _pairingEndpoint = _settings.PairingEndpoint;
         _deviceEndpoint = _settings.DeviceEndpoint;
 
@@ -62,6 +66,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         ResolutionOptions = new ObservableCollection<int>(AppSettings.AllowedResolutions);
         FrameRateOptions = new ObservableCollection<int>(AppSettings.AllowedFrameRates);
         BitrateOptions = new ObservableCollection<int>(AppSettings.AllowedBitrates);
+        EyeOptions = new ObservableCollection<string>(["Left", "Right"]);
 
         RefreshDevicesCommand = new AsyncRelayCommand(RefreshDevicesAsync, () => CanRefreshDevices);
         PairWirelessCommand = new AsyncRelayCommand(PairWirelessAsync, () => CanChooseDevice);
@@ -74,6 +79,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public ObservableCollection<int> ResolutionOptions { get; }
     public ObservableCollection<int> FrameRateOptions { get; }
     public ObservableCollection<int> BitrateOptions { get; }
+    public ObservableCollection<string> EyeOptions { get; }
 
     public IAsyncRelayCommand RefreshDevicesCommand { get; }
     public IAsyncRelayCommand PairWirelessCommand { get; }
@@ -210,6 +216,39 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         }
     }
 
+    public string SelectedEye
+    {
+        get => _selectedEye;
+        set
+        {
+            var safe = string.Equals(value, "Right", StringComparison.OrdinalIgnoreCase) ? "Right" : "Left";
+            if (SetProperty(ref _selectedEye, safe))
+            {
+                _settings.VideoEye = safe;
+                PersistSettings();
+                AppLog.Info("Settings", $"Preview eye selection changed to {safe}.");
+            }
+        }
+    }
+
+    public double RotationDegrees
+    {
+        get => _rotationDegrees;
+        set
+        {
+            var safe = Math.Clamp(Math.Round(value), -180d, 180d);
+            if (SetProperty(ref _rotationDegrees, safe))
+            {
+                _settings.RotationDegrees = (int)safe;
+                OnPropertyChanged(nameof(RotationDescription));
+                PersistSettings();
+                AppLog.Info("Settings", $"Preview rotation changed to {(int)safe} degrees clockwise.");
+            }
+        }
+    }
+
+    public string RotationDescription => $"{(int)RotationDegrees}°";
+
     public bool IsBusy
     {
         get => _isBusy;
@@ -238,6 +277,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
     public bool CanRefreshDevices => !IsBusy;
     public bool CanChooseDevice => !IsBusy && !IsStreaming;
     public bool CanEditQuality => !IsBusy && !IsStreaming;
+    public bool CanEditVideo => !IsBusy && !IsStreaming;
     public bool CanEditQualityAndManualQuality => CanEditQuality && !IsAutomaticQuality;
     public double ManualQualityOpacity => IsAutomaticQuality ? 0.56 : 1.0;
     public IBrush ConnectionDotBrush => IsStreaming
@@ -393,7 +433,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
             var options = StreamingOptions.FromSettings(_settings);
             AppLog.Info("Streaming",
                 $"Starting stream; device='{serial}'; qualityMode={(options.IsAutomatic ? "automatic" : "manual")}; " +
-                $"maxSize={options.MaxSize}; fps={options.FramesPerSecond}; bitrateMbps={options.BitrateMbps}.");
+                $"maxSize={options.MaxSize}; fps={options.FramesPerSecond}; bitrateMbps={options.BitrateMbps}; " +
+                $"eye={options.VideoEye}; rotationDegrees={options.RotationDegrees}.");
 
             session = await _streaming.StartAsync(serial, options, _lifetime.Token);
             await _videoSurface.AttachAsync(session, _lifetime.Token);
@@ -405,7 +446,8 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 ? "Streaming over Wi-Fi"
                 : "Streaming over USB";
             ActivityTitle = "Streaming";
-            ActivityMessage = $"Embedded video active at {options.MaxSize} px, {options.FramesPerSecond} FPS, {options.BitrateMbps} Mbps.";
+            ActivityMessage = $"Showing the {options.VideoEye.ToLowerInvariant()} eye, rotated {options.RotationDegrees}°, " +
+                $"at {options.MaxSize} px, {options.FramesPerSecond} FPS, {options.BitrateMbps} Mbps.";
             AppLog.Info("Performance",
                 $"Video stream is attached. scrcpyPid={session.ProcessId}; startupAndAttachMs={stopwatch.ElapsedMilliseconds}.");
         }
@@ -647,6 +689,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
         OnPropertyChanged(nameof(CanRefreshDevices));
         OnPropertyChanged(nameof(CanChooseDevice));
         OnPropertyChanged(nameof(CanEditQuality));
+        OnPropertyChanged(nameof(CanEditVideo));
         OnPropertyChanged(nameof(CanEditQualityAndManualQuality));
         OnPropertyChanged(nameof(CanStartStream));
         OnPropertyChanged(nameof(CanStopStream));

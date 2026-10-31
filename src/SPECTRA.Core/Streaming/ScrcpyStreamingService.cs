@@ -10,7 +10,7 @@ public sealed class ScrcpyStreamingService
 
     public ScrcpyStreamingService(ToolLocator? tools = null) => _tools = tools ?? new ToolLocator();
 
-    public Task<ScrcpySession> StartAsync(
+    public async Task<ScrcpySession> StartAsync(
         string deviceSerial,
         StreamingOptions options,
         CancellationToken cancellationToken = default)
@@ -59,7 +59,7 @@ public sealed class ScrcpyStreamingService
                 throw new InvalidOperationException("Windows could not start scrcpy.");
 
             AppLog.Debug("Performance", $"scrcpy process creation completed in {stopwatch.ElapsedMilliseconds} ms; PID={process.Id}.");
-            return Task.FromResult(new ScrcpySession(process, title));
+            return new ScrcpySession(process, title);
         }
         catch (Exception exception)
         {
