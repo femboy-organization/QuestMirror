@@ -51,7 +51,6 @@ public partial class MainWindow : Window
 
     private void OnPreviewAreaSizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        var side = Math.Max(1d, Math.Floor(Math.Min(e.NewSize.Width, e.NewSize.Height)));
         const double aspectRatio = 16d / 9d;
         var frameWidth = Math.Min(e.NewSize.Width, e.NewSize.Height * aspectRatio);
         var frameHeight = frameWidth / aspectRatio;
