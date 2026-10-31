@@ -14,25 +14,25 @@ public sealed class ScrcpyVideoCropTests
     }
 
     [Fact]
-    public void CreateSquareEyeCrop_CropsTheLeftEyeToAnInscribedSquare()
+    public void CreateHalfDisplayCrop_CropsLeftEye()
     {
-        var crop = ScrcpyVideoCrop.CreateSquareEyeCrop(new ScrcpyDisplaySize(3664, 1920), "Left");
+        var crop = ScrcpyVideoCrop.CreateHalfDisplayCrop(new ScrcpyDisplaySize(3664, 1920), "Left");
 
-        Assert.Equal("1062:1062:384:428", crop);
+        Assert.Equal("1832:1920:0:0", crop);
     }
 
     [Fact]
-    public void CreateSquareEyeCrop_CropsTheRightEyeToAnInscribedSquare()
+    public void CreateHalfDisplayCrop_CropsRightEye()
     {
-        var crop = ScrcpyVideoCrop.CreateSquareEyeCrop(new ScrcpyDisplaySize(3664, 1920), "Right");
+        var crop = ScrcpyVideoCrop.CreateHalfDisplayCrop(new ScrcpyDisplaySize(3664, 1920), "Right");
 
-        Assert.Equal("1062:1062:2216:428", crop);
+        Assert.Equal("1832:1920:1832:0", crop);
     }
 
     [Fact]
-    public void CreateSquareEyeCrop_RejectsUnknownEye()
+    public void CreateHalfDisplayCrop_RejectsUnknownEye()
     {
         Assert.Throws<ArgumentException>(() =>
-            ScrcpyVideoCrop.CreateSquareEyeCrop(new ScrcpyDisplaySize(3664, 1920), "Both"));
+            ScrcpyVideoCrop.CreateHalfDisplayCrop(new ScrcpyDisplaySize(3664, 1920), "Both"));
     }
 }

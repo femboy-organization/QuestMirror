@@ -446,7 +446,7 @@ public sealed class MainViewModel : ObservableObject, IAsyncDisposable
                 ? "Streaming over Wi-Fi"
                 : "Streaming over USB";
             ActivityTitle = "Streaming";
-            ActivityMessage = $"Showing a square {options.VideoEye.ToLowerInvariant()} eye view, rotated {options.RotationDegrees}°, " +
+            ActivityMessage = $"Showing the {options.VideoEye.ToLowerInvariant()} eye, rotated {options.RotationDegrees}°, " +
                 $"at {options.MaxSize} px, {options.FramesPerSecond} FPS, {options.BitrateMbps} Mbps.";
             AppLog.Info("Performance",
                 $"Video stream is attached. scrcpyPid={session.ProcessId}; startupAndAttachMs={stopwatch.ElapsedMilliseconds}.");

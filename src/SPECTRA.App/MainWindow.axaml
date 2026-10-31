@@ -3,7 +3,7 @@
         xmlns:local="using:SPECTRA.App.Platforms"
         x:Class="SPECTRA.App.MainWindow"
         Title="SPECTRA"
-        Width="1320" Height="870"
+        Width="1440" Height="980"
         MinWidth="1000" MinHeight="700"
         WindowStartupLocation="CenterScreen"
         Background="#F7F4EE"
@@ -52,7 +52,7 @@
     </Style>
   </Window.Styles>
 
-  <Grid Margin="30" RowDefinitions="Auto,*" RowSpacing="24">
+  <Grid Margin="22" RowDefinitions="Auto,*" RowSpacing="18">
     <Grid ColumnDefinitions="*,Auto">
       <StackPanel Spacing="4">
         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -73,7 +73,7 @@
     </Grid>
 
     <Grid Grid.Row="1" ColumnDefinitions="*,350" ColumnSpacing="22">
-      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="14">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto">
           <StackPanel Spacing="3">
             <TextBlock Text="Live preview" FontSize="19" FontWeight="SemiBold"/>

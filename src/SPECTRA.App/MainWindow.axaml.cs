@@ -47,13 +47,6 @@ public partial class MainWindow : Window
         };
     }
 
-    private void OnPreviewAreaSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        var side = Math.Max(1d, Math.Floor(Math.Min(e.NewSize.Width, e.NewSize.Height)));
-        SquareVideoFrame.Width = side;
-        SquareVideoFrame.Height = side;
-    }
-
     private void OnFullscreenClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         WindowState = WindowState == WindowState.FullScreen ? WindowState.Normal : WindowState.FullScreen;
